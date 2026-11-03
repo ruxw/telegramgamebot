@@ -367,15 +367,31 @@ function updateEquippedChips() {
   if (!row) return;
   const eq = playerProfile.equipped;
   const activeTags = [];
-  if (eq.headwear && eq.headwear !== 'none') activeTags.push({ label: 'Headwear', val: eq.headwear, icon: '👑', cat: 'headwear' });
-  if (eq.face && eq.face !== 'normal') activeTags.push({ label: 'Face', val: eq.face, icon: '😎', cat: 'face' });
-  if (eq.outfit && eq.outfit !== 'none') activeTags.push({ label: 'Outfit', val: eq.outfit, icon: '👕', cat: 'outfit' });
-  if (eq.neck && eq.neck !== 'none') activeTags.push({ label: 'Neck', val: eq.neck, icon: '⛓️', cat: 'neck' });
-  if (eq.hands && eq.hands !== 'none') activeTags.push({ label: 'Hands', val: eq.hands, icon: '🥊', cat: 'hands' });
+
+  if (eq.headwear && eq.headwear !== 'none') {
+    const item = (COSMETICS.headwear || []).find(i => i.id === eq.headwear);
+    activeTags.push({ label: item?.name || 'Headwear', icon: item?.icon || '👑', cat: 'headwear' });
+  }
+  if (eq.face && eq.face !== 'normal') {
+    const item = (COSMETICS.face || []).find(i => i.id === eq.face);
+    activeTags.push({ label: item?.name || 'Face', icon: item?.icon || '😎', cat: 'face' });
+  }
+  if (eq.outfit && eq.outfit !== 'none') {
+    const item = (COSMETICS.outfits || []).find(i => i.id === eq.outfit);
+    activeTags.push({ label: item?.name || 'Outfit', icon: item?.icon || '👕', cat: 'outfit' });
+  }
+  if (eq.neck && eq.neck !== 'none') {
+    const item = (COSMETICS.neck || []).find(i => i.id === eq.neck);
+    activeTags.push({ label: item?.name || 'Neck', icon: item?.icon || '⛓️', cat: 'neck' });
+  }
+  if (eq.hands && eq.hands !== 'none') {
+    const item = (COSMETICS.hands || []).find(i => i.id === eq.hands);
+    activeTags.push({ label: item?.name || 'Hands', icon: item?.icon || '🥊', cat: 'hands' });
+  }
 
   row.innerHTML = activeTags.map(t => {
     return `<div class="eq-tag">
-      <span>${t.icon} ${t.label}</span>
+      <span>${t.icon} ${esc(t.label)}</span>
       <span class="rm-btn" data-cat="${t.cat}">✕</span>
     </div>`;
   }).join('');
@@ -389,7 +405,7 @@ function updateEquippedChips() {
     };
   });
 
-  if ($('equipped-chip')) $('equipped-chip').textContent = `Equipped ${activeTags.length}/2`;
+  if ($('equipped-chip')) $('equipped-chip').textContent = `Equipped ${activeTags.length} item${activeTags.length === 1 ? '' : 's'}`;
 }
 
 $('btn-customise-reset').onclick = () => {
@@ -804,7 +820,7 @@ const rr = (x, y, w, h, r) => {
   ctx.roundRect(x, y, w, h, r);
 };
 
-// Pedestal Avatar Drawer (3D Aesthetic Matching Mockup)
+// Pedestal Avatar Drawer (3D Aesthetic Matching Mockup with Full Emotions & Outfits)
 function drawPedestalAvatar(c, now, custom, pose = 'stand') {
   if (!c) return;
   const actx = c.getContext('2d');
@@ -821,18 +837,19 @@ function drawPedestalAvatar(c, now, custom, pose = 'stand') {
   const curPose = pose || eq.pose || 'stand';
 
   // Soft purple glow aura behind character
-  const aura = actx.createRadialGradient(cx, cy - 20, 20, cx, cy - 20, 80);
-  aura.addColorStop(0, 'rgba(138, 79, 255, 0.45)');
+  const aura = actx.createRadialGradient(cx, cy - 20, 20, cx, cy - 20, 85);
+  aura.addColorStop(0, 'rgba(138, 79, 255, 0.48)');
+  aura.addColorStop(0.6, 'rgba(138, 79, 255, 0.15)');
   aura.addColorStop(1, 'transparent');
   actx.fillStyle = aura;
   actx.beginPath();
-  actx.arc(cx, cy - 20, 80, 0, 6.28);
+  actx.arc(cx, cy - 20, 85, 0, 6.28);
   actx.fill();
 
   // 3D Shadow on Pedestal
-  actx.fillStyle = 'rgba(0,0,0,0.45)';
+  actx.fillStyle = 'rgba(0,0,0,0.5)';
   actx.beginPath();
-  actx.ellipse(cx, cy + 62, 38, 10, 0, 0, 6.28);
+  actx.ellipse(cx, cy + 62, 42, 11, 0, 0, 6.28);
   actx.fill();
 
   // Legs
@@ -853,11 +870,90 @@ function drawPedestalAvatar(c, now, custom, pose = 'stand') {
   actx.fill();
 
   // Outfit rendering
-  if (eq.outfit && eq.outfit !== 'none') {
-    actx.fillStyle = eq.outfit === 'tuxedo' ? '#111' : eq.outfit === 'boxer' ? '#ff3b30' : eq.outfit === 'ninja' ? '#1a1a24' : '#ffd23f';
-    actx.beginPath();
-    actx.roundRect(cx - 30, cy - 8 + wobble, 60, 42, 14);
-    actx.fill();
+  const outfit = eq.outfit;
+  if (outfit && outfit !== 'none') {
+    if (outfit === 'tuxedo') {
+      // Black tuxedo jacket
+      actx.fillStyle = '#111118';
+      actx.beginPath();
+      actx.roundRect(cx - 32, cy - 14 + wobble, 64, 48, 16);
+      actx.fill();
+      // White shirt triangle
+      actx.fillStyle = '#f5f5f5';
+      actx.beginPath();
+      actx.moveTo(cx - 14, cy - 14 + wobble);
+      actx.lineTo(cx + 14, cy - 14 + wobble);
+      actx.lineTo(cx, cy + 12 + wobble);
+      actx.closePath();
+      actx.fill();
+      // Red bow tie
+      actx.fillStyle = '#ff3b30';
+      actx.beginPath();
+      actx.moveTo(cx - 8, cy - 10 + wobble);
+      actx.lineTo(cx + 8, cy - 4 + wobble);
+      actx.lineTo(cx + 8, cy - 10 + wobble);
+      actx.lineTo(cx - 8, cy - 4 + wobble);
+      actx.closePath();
+      actx.fill();
+    } else if (outfit === 'boxer') {
+      // Scarlet boxing shorts with gold champion belt
+      actx.fillStyle = '#ff334b';
+      actx.beginPath();
+      actx.roundRect(cx - 30, cy + 8 + wobble, 60, 26, 10);
+      actx.fill();
+      // Gold championship belt waistband
+      actx.fillStyle = '#ffd23f';
+      actx.fillRect(cx - 30, cy + 8 + wobble, 60, 8);
+      actx.fillStyle = '#c89e00';
+      actx.fillRect(cx - 8, cy + 6 + wobble, 16, 12);
+    } else if (outfit === 'streetwear') {
+      // Cool hoodie
+      actx.fillStyle = '#261b47';
+      actx.beginPath();
+      actx.roundRect(cx - 32, cy - 16 + wobble, 64, 52, 16);
+      actx.fill();
+      // Kangaroo pocket
+      actx.fillStyle = '#392a66';
+      actx.beginPath();
+      actx.roundRect(cx - 20, cy + 8 + wobble, 40, 18, 6);
+      actx.fill();
+      // White drawstrings
+      actx.strokeStyle = '#fff';
+      actx.lineWidth = 2;
+      actx.beginPath();
+      actx.moveTo(cx - 8, cy - 12 + wobble); actx.lineTo(cx - 8, cy + 2 + wobble);
+      actx.moveTo(cx + 8, cy - 12 + wobble); actx.lineTo(cx + 8, cy + 2 + wobble);
+      actx.stroke();
+    } else if (outfit === 'tracksuit') {
+      // Athletic retro tracksuit
+      actx.fillStyle = '#00c853';
+      actx.beginPath();
+      actx.roundRect(cx - 32, cy - 16 + wobble, 64, 50, 16);
+      actx.fill();
+      // Twin white racing stripes
+      actx.fillStyle = '#fff';
+      actx.fillRect(cx - 28, cy - 14 + wobble, 4, 46);
+      actx.fillRect(cx + 24, cy - 14 + wobble, 4, 46);
+    } else if (outfit === 'wrestler') {
+      // Lucha libre singlet
+      actx.fillStyle = '#00d4ff';
+      actx.beginPath();
+      actx.roundRect(cx - 30, cy - 8 + wobble, 60, 42, 14);
+      actx.fill();
+      // Suspenders
+      actx.fillStyle = '#ffd23f';
+      actx.fillRect(cx - 22, cy - 18 + wobble, 7, 20);
+      actx.fillRect(cx + 15, cy - 18 + wobble, 7, 20);
+    } else if (outfit === 'ninja') {
+      // Stealth shadow assassin gi with crimson belt
+      actx.fillStyle = '#171424';
+      actx.beginPath();
+      actx.roundRect(cx - 32, cy - 18 + wobble, 64, 54, 16);
+      actx.fill();
+      // Crimson sash
+      actx.fillStyle = '#ff3b30';
+      actx.fillRect(cx - 30, cy + 8 + wobble, 60, 8);
+    }
   }
 
   // Torso Highlight
@@ -866,44 +962,127 @@ function drawPedestalAvatar(c, now, custom, pose = 'stand') {
   actx.roundRect(cx - 18, cy - 10 + wobble, 18, 38, 12);
   actx.fill();
 
-  // Arms & Pose
+  // Neck Accessories
+  const neck = eq.neck;
+  if (neck && neck !== 'none') {
+    if (neck === 'gold_chain') {
+      actx.strokeStyle = '#ffd23f';
+      actx.lineWidth = 4;
+      actx.beginPath();
+      actx.arc(cx, cy - 14 + wobble, 18, 0.2, Math.PI - 0.2);
+      actx.stroke();
+    } else if (neck === 'silver_chain') {
+      actx.strokeStyle = '#d4d4dc';
+      actx.lineWidth = 3.5;
+      actx.beginPath();
+      actx.arc(cx, cy - 14 + wobble, 18, 0.2, Math.PI - 0.2);
+      actx.stroke();
+    } else if (neck === 'medal') {
+      actx.strokeStyle = '#ff3b30';
+      actx.lineWidth = 3;
+      actx.beginPath();
+      actx.moveTo(cx - 12, cy - 18 + wobble); actx.lineTo(cx, cy - 2 + wobble);
+      actx.moveTo(cx + 12, cy - 18 + wobble); actx.lineTo(cx, cy - 2 + wobble);
+      actx.stroke();
+      actx.fillStyle = '#ffd23f';
+      actx.beginPath();
+      actx.arc(cx, cy + 2 + wobble, 7, 0, 6.28);
+      actx.fill();
+    } else if (neck === 'scarf') {
+      actx.fillStyle = '#ff3b30';
+      actx.beginPath();
+      actx.roundRect(cx - 24, cy - 18 + wobble, 48, 12, 6);
+      actx.fill();
+      actx.fillRect(cx + 6, cy - 10 + wobble, 10, 24);
+    } else if (neck === 'diamond_pendant') {
+      actx.strokeStyle = '#a259ff';
+      actx.lineWidth = 2;
+      actx.beginPath();
+      actx.arc(cx, cy - 14 + wobble, 16, 0.2, Math.PI - 0.2);
+      actx.stroke();
+      actx.fillStyle = '#00f5d4';
+      actx.beginPath();
+      actx.moveTo(cx, cy - 4 + wobble);
+      actx.lineTo(cx + 6, cy + 2 + wobble);
+      actx.lineTo(cx, cy + 8 + wobble);
+      actx.lineTo(cx - 6, cy + 2 + wobble);
+      actx.closePath();
+      actx.fill();
+    }
+  }
+
+  // Arms & Pose Hand Coordinates
+  let h1 = { x: cx - 44, y: cy + 18 + wobble };
+  let h2 = { x: cx + 44, y: cy + 18 + wobble };
+
   actx.strokeStyle = skin;
   actx.lineWidth = 14;
   actx.lineCap = 'round';
   actx.beginPath();
   if (curPose === 'flex') {
-    actx.moveTo(cx - 24, cy - 6 + wobble);
-    actx.lineTo(cx - 44, cy - 22 + wobble);
-    actx.moveTo(cx + 24, cy - 6 + wobble);
-    actx.lineTo(cx + 42, cy + 18 + wobble);
+    h1 = { x: cx - 44, y: cy - 22 + wobble };
+    h2 = { x: cx + 42, y: cy + 18 + wobble };
+    actx.moveTo(cx - 24, cy - 6 + wobble); actx.lineTo(h1.x, h1.y);
+    actx.moveTo(cx + 24, cy - 6 + wobble); actx.lineTo(h2.x, h2.y);
   } else if (curPose === 'victory') {
-    actx.moveTo(cx - 24, cy - 6 + wobble);
-    actx.lineTo(cx - 44, cy - 36 + wobble);
-    actx.moveTo(cx + 24, cy - 6 + wobble);
-    actx.lineTo(cx + 44, cy - 36 + wobble);
+    h1 = { x: cx - 44, y: cy - 36 + wobble };
+    h2 = { x: cx + 44, y: cy - 36 + wobble };
+    actx.moveTo(cx - 24, cy - 6 + wobble); actx.lineTo(h1.x, h1.y);
+    actx.moveTo(cx + 24, cy - 6 + wobble); actx.lineTo(h2.x, h2.y);
   } else if (curPose === 'double_flex') {
-    actx.moveTo(cx - 24, cy - 6 + wobble);
-    actx.lineTo(cx - 42, cy - 24 + wobble);
-    actx.moveTo(cx + 24, cy - 6 + wobble);
-    actx.lineTo(cx + 42, cy - 24 + wobble);
+    h1 = { x: cx - 42, y: cy - 24 + wobble };
+    h2 = { x: cx + 42, y: cy - 24 + wobble };
+    actx.moveTo(cx - 24, cy - 6 + wobble); actx.lineTo(h1.x, h1.y);
+    actx.moveTo(cx + 24, cy - 6 + wobble); actx.lineTo(h2.x, h2.y);
   } else if (curPose === 'boxing') {
-    actx.moveTo(cx - 24, cy - 6 + wobble);
-    actx.lineTo(cx - 36, cy - 14 + wobble);
-    actx.moveTo(cx + 24, cy - 6 + wobble);
-    actx.lineTo(cx + 46, cy - 10 + wobble);
+    h1 = { x: cx - 36, y: cy - 14 + wobble };
+    h2 = { x: cx + 46, y: cy - 10 + wobble };
+    actx.moveTo(cx - 24, cy - 6 + wobble); actx.lineTo(h1.x, h1.y);
+    actx.moveTo(cx + 24, cy - 6 + wobble); actx.lineTo(h2.x, h2.y);
   } else if (curPose === 'dab') {
-    actx.moveTo(cx - 24, cy - 6 + wobble);
-    actx.lineTo(cx - 46, cy - 28 + wobble);
-    actx.moveTo(cx + 24, cy - 6 + wobble);
-    actx.lineTo(cx + 40, cy - 20 + wobble);
+    h1 = { x: cx - 46, y: cy - 28 + wobble };
+    h2 = { x: cx + 40, y: cy - 20 + wobble };
+    actx.moveTo(cx - 24, cy - 6 + wobble); actx.lineTo(h1.x, h1.y);
+    actx.moveTo(cx + 24, cy - 6 + wobble); actx.lineTo(h2.x, h2.y);
   } else {
     // Confident standing
-    actx.moveTo(cx - 24, cy - 6 + wobble);
-    actx.lineTo(cx - 44, cy + 18 + wobble);
-    actx.moveTo(cx + 24, cy - 6 + wobble);
-    actx.lineTo(cx + 44, cy + 18 + wobble);
+    actx.moveTo(cx - 24, cy - 6 + wobble); actx.lineTo(h1.x, h1.y);
+    actx.moveTo(cx + 24, cy - 6 + wobble); actx.lineTo(h2.x, h2.y);
   }
   actx.stroke();
+
+  // Hand Accessories
+  const hands = eq.hands;
+  if (hands && hands !== 'none') {
+    for (const h of [h1, h2]) {
+      if (hands === 'gloves') {
+        actx.fillStyle = '#ff2a55';
+        actx.beginPath();
+        actx.arc(h.x, h.y, 11, 0, 6.28);
+        actx.fill();
+        actx.strokeStyle = '#fff';
+        actx.lineWidth = 2.5;
+        actx.beginPath();
+        actx.arc(h.x, h.y, 11, 0, 6.28);
+        actx.stroke();
+      } else if (hands === 'wraps') {
+        actx.fillStyle = '#ffffff';
+        actx.beginPath();
+        actx.arc(h.x, h.y, 9, 0, 6.28);
+        actx.fill();
+      } else if (hands === 'bracelets') {
+        actx.fillStyle = '#ffd23f';
+        actx.beginPath();
+        actx.arc(h.x, h.y, 10, 0, 6.28);
+        actx.fill();
+      } else if (hands === 'gauntlets') {
+        actx.fillStyle = '#ff7b00';
+        actx.beginPath();
+        actx.arc(h.x, h.y, 11, 0, 6.28);
+        actx.fill();
+      }
+    }
+  }
 
   // Head
   const headY = cy - 42 + wobble;
@@ -918,18 +1097,49 @@ function drawPedestalAvatar(c, now, custom, pose = 'stand') {
   actx.arc(cx - 10, headY - 12, 11, 0, 6.28);
   actx.fill();
 
-  // Face Expression (Cool Shades from mockup as default)
-  const face = eq.face || 'cool';
+  // Face Expression (Cool, Determined, Angry, Sleepy, Smirk, Shocked, Laughing, Tongue, Evil, Normal)
+  const face = eq.face || 'normal';
   if (face === 'cool' || eq.headwear === 'shades') {
+    // Sleek black sunglasses
     actx.fillStyle = '#111116';
     actx.beginPath();
     actx.roundRect(cx - 22, headY - 8, 20, 14, 4);
     actx.roundRect(cx + 2, headY - 8, 20, 14, 4);
     actx.fillRect(cx - 4, headY - 4, 8, 4);
     actx.fill();
-    actx.fillStyle = 'rgba(255,255,255,0.4)';
+    // Glass shine
+    actx.fillStyle = 'rgba(255,255,255,0.45)';
     actx.fillRect(cx - 18, headY - 6, 6, 3);
     actx.fillRect(cx + 6, headY - 6, 6, 3);
+  } else if (face === 'determined') {
+    // Determined anime eyes & furrowed brow
+    for (const ex of [-10, 10]) {
+      actx.fillStyle = '#fff';
+      actx.beginPath();
+      actx.ellipse(cx + ex, headY - 4, 8, 7, 0, 0, 6.28);
+      actx.fill();
+      actx.fillStyle = '#111';
+      actx.beginPath();
+      actx.arc(cx + ex + (ex > 0 ? -1 : 1), headY - 4, 4, 0, 6.28);
+      actx.fill();
+      actx.fillStyle = '#fff';
+      actx.beginPath();
+      actx.arc(cx + ex + (ex > 0 ? -2 : 0), headY - 6, 1.5, 0, 6.28);
+      actx.fill();
+    }
+    // Determined clenched brows
+    actx.strokeStyle = '#111';
+    actx.lineWidth = 3.5;
+    actx.beginPath();
+    actx.moveTo(cx - 18, headY - 12); actx.lineTo(cx - 3, headY - 8);
+    actx.moveTo(cx + 18, headY - 12); actx.lineTo(cx + 3, headY - 8);
+    actx.stroke();
+    // Clenched determined mouth
+    actx.strokeStyle = '#111';
+    actx.lineWidth = 2.5;
+    actx.beginPath();
+    actx.moveTo(cx - 7, headY + 10); actx.lineTo(cx + 7, headY + 10);
+    actx.stroke();
   } else if (face === 'angry') {
     for (const ex of [-10, 10]) {
       actx.fillStyle = '#fff';
@@ -938,27 +1148,121 @@ function drawPedestalAvatar(c, now, custom, pose = 'stand') {
       actx.fill();
       actx.fillStyle = '#111';
       actx.beginPath();
-      actx.arc(cx + ex, headY - 4, 3, 0, 6.28);
+      actx.arc(cx + ex, headY - 4, 3.5, 0, 6.28);
       actx.fill();
     }
     // Angry angled brows
     actx.strokeStyle = '#111';
-    actx.lineWidth = 3;
+    actx.lineWidth = 3.5;
     actx.beginPath();
-    actx.moveTo(cx - 16, headY - 12); actx.lineTo(cx - 4, headY - 8);
-    actx.moveTo(cx + 16, headY - 12); actx.lineTo(cx + 4, headY - 8);
+    actx.moveTo(cx - 17, headY - 12); actx.lineTo(cx - 3, headY - 7);
+    actx.moveTo(cx + 17, headY - 12); actx.lineTo(cx + 3, headY - 7);
+    actx.stroke();
+    // Grimace mouth
+    actx.strokeStyle = '#111';
+    actx.lineWidth = 2;
+    actx.beginPath();
+    actx.arc(cx, headY + 14, 6, Math.PI, 0);
     actx.stroke();
   } else if (face === 'sleepy') {
     actx.strokeStyle = '#111';
+    actx.lineWidth = 3.5;
+    actx.beginPath();
+    actx.moveTo(cx - 16, headY - 4); actx.lineTo(cx - 5, headY - 4);
+    actx.moveTo(cx + 5, headY - 4); actx.lineTo(cx + 16, headY - 4);
+    actx.stroke();
+    // Tiny floating sleep zzz
+    actx.fillStyle = '#ffd23f';
+    actx.font = 'bold 12px sans-serif';
+    actx.fillText('z', cx + 18, headY - 16);
+    actx.font = 'bold 9px sans-serif';
+    actx.fillText('z', cx + 26, headY - 24);
+  } else if (face === 'smirk') {
+    // Normal eye + winking eye
+    actx.fillStyle = '#fff';
+    actx.beginPath();
+    actx.arc(cx - 10, headY - 4, 7, 0, 6.28);
+    actx.fill();
+    actx.fillStyle = '#111';
+    actx.beginPath();
+    actx.arc(cx - 9, headY - 4, 3.5, 0, 6.28);
+    actx.fill();
+    // Right winking wink
+    actx.strokeStyle = '#111';
     actx.lineWidth = 3;
     actx.beginPath();
-    actx.moveTo(cx - 16, headY - 4); actx.lineTo(cx - 6, headY - 4);
-    actx.moveTo(cx + 6, headY - 4); actx.lineTo(cx + 16, headY - 4);
+    actx.arc(cx + 10, headY - 4, 6, 0.2, Math.PI - 0.2);
     actx.stroke();
-  } else {
-    // Googly eyes
+    // Smirk smile
+    actx.beginPath();
+    actx.arc(cx + 4, headY + 6, 8, 0.1, Math.PI * 0.7);
+    actx.stroke();
+  } else if (face === 'shocked') {
+    // Big round eyes
     for (const ex of [-10, 10]) {
       actx.fillStyle = '#fff';
+      actx.beginPath();
+      actx.arc(cx + ex, headY - 6, 8, 0, 6.28);
+      actx.fill();
+      actx.fillStyle = '#111';
+      actx.beginPath();
+      actx.arc(cx + ex, headY - 6, 3, 0, 6.28);
+      actx.fill();
+    }
+    // High arched raised brows
+    actx.strokeStyle = '#111';
+    actx.lineWidth = 2.5;
+    actx.beginPath();
+    actx.arc(cx - 10, headY - 16, 6, Math.PI, 0);
+    actx.arc(cx + 10, headY - 16, 6, Math.PI, 0);
+    actx.stroke();
+    // Big open round mouth O
+    actx.fillStyle = '#111';
+    actx.beginPath();
+    actx.ellipse(cx, headY + 8, 6, 8, 0, 0, 6.28);
+    actx.fill();
+  } else if (face === 'laughing') {
+    // Happy squinting eyes ^^
+    actx.strokeStyle = '#111';
+    actx.lineWidth = 3.5;
+    actx.beginPath();
+    actx.arc(cx - 10, headY - 4, 7, Math.PI, 0);
+    actx.arc(cx + 10, headY - 4, 7, Math.PI, 0);
+    actx.stroke();
+    // Big joyful open mouth
+    actx.fillStyle = '#111';
+    actx.beginPath();
+    actx.arc(cx, headY + 6, 8, 0, Math.PI);
+    actx.fill();
+    actx.fillStyle = '#ff4d6d';
+    actx.beginPath();
+    actx.arc(cx, headY + 11, 4, 0, Math.PI);
+    actx.fill();
+  } else if (face === 'tongue') {
+    // Left eye normal, right eye wink
+    actx.fillStyle = '#fff';
+    actx.beginPath();
+    actx.arc(cx - 10, headY - 4, 7, 0, 6.28);
+    actx.fill();
+    actx.fillStyle = '#111';
+    actx.beginPath();
+    actx.arc(cx - 10, headY - 4, 3, 0, 6.28);
+    actx.fill();
+    // Right wink
+    actx.strokeStyle = '#111';
+    actx.lineWidth = 3;
+    actx.beginPath();
+    actx.arc(cx + 10, headY - 4, 6, 0.2, Math.PI - 0.2);
+    actx.stroke();
+    // Tongue sticking out
+    actx.fillStyle = '#ff4d6d';
+    actx.beginPath();
+    actx.roundRect(cx - 4, headY + 7, 8, 9, 4);
+    actx.fill();
+  } else if (face === 'evil') {
+    // Evil angled glowing eyes
+    for (const ex of [-10, 10]) {
+      actx.fillStyle = '#ffd23f';
       actx.beginPath();
       actx.arc(cx + ex, headY - 4, 7, 0, 6.28);
       actx.fill();
@@ -967,9 +1271,37 @@ function drawPedestalAvatar(c, now, custom, pose = 'stand') {
       actx.arc(cx + ex, headY - 4, 3, 0, 6.28);
       actx.fill();
     }
+    // Wicked sharp brow
+    actx.strokeStyle = '#111';
+    actx.lineWidth = 3.5;
+    actx.beginPath();
+    actx.moveTo(cx - 17, headY - 14); actx.lineTo(cx - 3, headY - 8);
+    actx.moveTo(cx + 17, headY - 14); actx.lineTo(cx + 3, headY - 8);
+    actx.stroke();
+    // Evil grin
+    actx.beginPath();
+    actx.arc(cx, headY + 6, 8, 0.2, Math.PI - 0.2);
+    actx.stroke();
+  } else {
+    // Normal cute googly eyes
+    for (const ex of [-10, 10]) {
+      actx.fillStyle = '#fff';
+      actx.beginPath();
+      actx.arc(cx + ex, headY - 4, 7, 0, 6.28);
+      actx.fill();
+      actx.fillStyle = '#111';
+      actx.beginPath();
+      actx.arc(cx + ex, headY - 4, 3.5, 0, 6.28);
+      actx.fill();
+      // Eye reflection glint
+      actx.fillStyle = '#fff';
+      actx.beginPath();
+      actx.arc(cx + ex - 1.5, headY - 5.5, 1.5, 0, 6.28);
+      actx.fill();
+    }
   }
 
-  // Headwear
+  // Headwear: Crown, Cowboy, Tophat, Viking, Halo, Headphones, Beanie, Cap, Bunny, Bow
   const hw = eq.headwear;
   if (hw === 'crown') {
     actx.fillStyle = '#ffd23f';
@@ -977,57 +1309,104 @@ function drawPedestalAvatar(c, now, custom, pose = 'stand') {
     actx.lineWidth = 2;
     actx.beginPath();
     actx.moveTo(cx - 20, headY - 24);
-    actx.lineTo(cx - 22, headY - 44);
+    actx.lineTo(cx - 22, headY - 46);
     actx.lineTo(cx - 10, headY - 34);
-    actx.lineTo(cx, headY - 48);
+    actx.lineTo(cx, headY - 50);
     actx.lineTo(cx + 10, headY - 34);
-    actx.lineTo(cx + 22, headY - 44);
+    actx.lineTo(cx + 22, headY - 46);
     actx.lineTo(cx + 20, headY - 24);
     actx.closePath();
     actx.fill();
     actx.stroke();
+    // Crown jewels
+    actx.fillStyle = '#ff2a55';
+    actx.beginPath();
+    actx.arc(cx, headY - 36, 3, 0, 6.28);
+    actx.arc(cx - 14, headY - 32, 2.5, 0, 6.28);
+    actx.arc(cx + 14, headY - 32, 2.5, 0, 6.28);
+    actx.fill();
+  } else if (hw === 'bunny') {
+    // Tall perky white rabbit ears with pastel pink centers
+    for (const dir of [-1, 1]) {
+      const ex = cx + dir * 14;
+      actx.fillStyle = '#ffffff';
+      actx.beginPath();
+      actx.ellipse(ex, headY - 48, 8, 24, dir * 0.15, 0, 6.28);
+      actx.fill();
+      actx.fillStyle = '#ff9ebb';
+      actx.beginPath();
+      actx.ellipse(ex, headY - 48, 4.5, 17, dir * 0.15, 0, 6.28);
+      actx.fill();
+    }
+  } else if (hw === 'bow') {
+    // Beautiful large red ribbon bow
+    actx.fillStyle = '#ff2a55';
+    // Left ribbon loop
+    actx.beginPath();
+    actx.ellipse(cx - 14, headY - 32, 12, 8, -0.3, 0, 6.28);
+    actx.fill();
+    // Right ribbon loop
+    actx.beginPath();
+    actx.ellipse(cx + 14, headY - 32, 12, 8, 0.3, 0, 6.28);
+    actx.fill();
+    // Center knot
+    actx.fillStyle = '#d4143d';
+    actx.beginPath();
+    actx.arc(cx, headY - 32, 6, 0, 6.28);
+    actx.fill();
+    // Ribbon tails
+    actx.strokeStyle = '#d4143d';
+    actx.lineWidth = 5;
+    actx.beginPath();
+    actx.moveTo(cx - 2, headY - 28); actx.lineTo(cx - 10, headY - 14);
+    actx.moveTo(cx + 2, headY - 28); actx.lineTo(cx + 10, headY - 14);
+    actx.stroke();
   } else if (hw === 'cowboy') {
     actx.fillStyle = '#8b5a2b';
     actx.beginPath();
-    actx.ellipse(cx, headY - 26, 36, 10, 0, 0, 6.28);
+    actx.ellipse(cx, headY - 26, 38, 10, 0, 0, 6.28);
     actx.fill();
     actx.beginPath();
-    actx.roundRect(cx - 18, headY - 46, 36, 24, 8);
+    actx.roundRect(cx - 18, headY - 48, 36, 26, 8);
     actx.fill();
+    actx.fillStyle = '#ffd23f';
+    actx.fillRect(cx - 18, headY - 30, 36, 4);
   } else if (hw === 'tophat') {
     actx.fillStyle = '#1a1a24';
     actx.beginPath();
     actx.ellipse(cx, headY - 26, 32, 8, 0, 0, 6.28);
     actx.fill();
-    actx.fillRect(cx - 16, headY - 56, 32, 32);
+    actx.fillRect(cx - 16, headY - 58, 32, 34);
     actx.fillStyle = '#ff3b30';
     actx.fillRect(cx - 16, headY - 32, 32, 6);
   } else if (hw === 'viking') {
-    actx.fillStyle = '#888';
+    actx.fillStyle = '#9e9eb0';
     actx.beginPath();
     actx.arc(cx, headY - 24, 22, Math.PI, 0);
     actx.fill();
-    // Horns
+    // Bull horns
     actx.fillStyle = '#ffd23f';
     actx.beginPath();
-    actx.moveTo(cx - 20, headY - 26); actx.lineTo(cx - 32, headY - 44); actx.lineTo(cx - 14, headY - 32);
-    actx.moveTo(cx + 20, headY - 26); actx.lineTo(cx + 32, headY - 44); actx.lineTo(cx + 14, headY - 32);
+    actx.moveTo(cx - 20, headY - 26); actx.lineTo(cx - 34, headY - 46); actx.lineTo(cx - 14, headY - 34);
+    actx.moveTo(cx + 20, headY - 26); actx.lineTo(cx + 34, headY - 46); actx.lineTo(cx + 14, headY - 34);
     actx.fill();
   } else if (hw === 'halo') {
     actx.strokeStyle = '#ffd23f';
     actx.lineWidth = 5;
     actx.beginPath();
-    actx.ellipse(cx, headY - 44, 24, 8, 0, 0, 6.28);
+    actx.ellipse(cx, headY - 46, 24, 8, 0, 0, 6.28);
     actx.stroke();
   } else if (hw === 'headphones') {
-    actx.strokeStyle = '#fff';
-    actx.lineWidth = 4;
+    actx.strokeStyle = '#ffffff';
+    actx.lineWidth = 4.5;
     actx.beginPath();
-    actx.arc(cx, headY, 34, Math.PI, 0);
+    actx.arc(cx, headY - 4, 34, Math.PI, 0);
     actx.stroke();
     actx.fillStyle = '#ff4d6d';
-    actx.fillRect(cx - 36, headY - 10, 8, 20);
-    actx.fillRect(cx + 28, headY - 10, 8, 20);
+    actx.beginPath();
+    actx.roundRect(cx - 38, headY - 14, 10, 22, 5);
+    actx.roundRect(cx + 28, headY - 14, 10, 22, 5);
+    actx.fill();
   } else if (hw === 'beanie') {
     actx.fillStyle = '#ff4d6d';
     actx.beginPath();
@@ -1035,14 +1414,14 @@ function drawPedestalAvatar(c, now, custom, pose = 'stand') {
     actx.fill();
     actx.fillStyle = '#fff';
     actx.beginPath();
-    actx.arc(cx, headY - 46, 7, 0, 6.28);
+    actx.arc(cx, headY - 48, 7.5, 0, 6.28);
     actx.fill();
   } else if (hw === 'cap') {
     actx.fillStyle = '#00d4ff';
     actx.beginPath();
     actx.arc(cx, headY - 20, 26, Math.PI, 0);
     actx.fill();
-    actx.fillRect(cx - 12, headY - 24, 40, 6);
+    actx.fillRect(cx - 12, headY - 24, 42, 6);
   }
 }
 

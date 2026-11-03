@@ -65,6 +65,26 @@ if (inTG) {
     if ($('name')) $('name').value = tgName;
     if ($('hero-username')) $('hero-username').textContent = tgName;
     store.set('gb_name', tgName);
+
+    // Fetch and display Telegram Profile Photo
+    const pfpUrl = u.photo_url || (u.id ? `/api/pfp/${u.id}` : null);
+    if (pfpUrl) {
+      const pfpImg = new Image();
+      pfpImg.crossOrigin = 'anonymous';
+      pfpImg.onload = () => {
+        window._tgPfp = pfpImg;
+        if ($('tg-pfp')) {
+          $('tg-pfp').src = pfpUrl;
+          if ($('pfp-ring')) $('pfp-ring').style.display = 'block';
+        }
+        if ($('hero-pfp-img')) {
+          $('hero-pfp-img').src = pfpUrl;
+          $('hero-pfp-img').classList.remove('hidden');
+          if ($('hero-avatar-dot')) $('hero-avatar-dot').classList.add('hidden');
+        }
+      };
+      pfpImg.src = pfpUrl;
+    }
   }
 } else {
   if ($('name')) $('name').value = store.get('gb_name') || '';
@@ -415,6 +435,18 @@ socket.on('fx', f => {
   }
 });
 
+// Powerup Collection Event
+socket.on('powerup_collect', d => {
+  const pwrNames = { speed: '⚡ SPEED BOOST!', shield: '🛡️ SHIELD ACTIVE!', mega: '💥 MEGA PUNCH!', bomb: '💣 BOOM!' };
+  const pwrColors = { speed: '#ffd23f', shield: '#00d4ff', mega: '#ff3366', bomb: '#ff7700' };
+  const txt = pwrNames[d.type] || '⚡ POWERUP!';
+  const clr = pwrColors[d.type] || '#ffd23f';
+  shake = Math.max(shake, 14);
+  comicPops.push({ x: 640, y: 320, text: txt, l: 1.4, c: clr, sc: 1.35 });
+  playSound('hit');
+  try { tg?.HapticFeedback?.notificationOccurred?.('warning'); } catch {}
+});
+
 // Navigation Tabs
 document.querySelectorAll('#bottom-tabs .tab-btn').forEach(btn => {
   btn.onclick = () => {
@@ -442,6 +474,49 @@ function updateStatsUI() {
   else if (myStats.wins >= 10) title = 'Jelly Menace 🔥';
   else if (myStats.wins >= 3) title = 'Street Brawler 🥊';
   if ($('profile-rank-tag')) $('profile-rank-tag').textContent = title;
+
+  updateLeaderboard();
+}
+
+function updateLeaderboard() {
+  let lb = [];
+  try {
+    lb = JSON.parse(store.get('gb_leaderboard') || '[]');
+  } catch {}
+
+  const myEntry = {
+    name: myName(),
+    kos: myStats.kos,
+    wins: myStats.wins,
+    color: mySkin
+  };
+
+  const existingIdx = lb.findIndex(e => e.name === myEntry.name);
+  if (existingIdx >= 0) {
+    lb[existingIdx] = myEntry;
+  } else {
+    lb.push(myEntry);
+  }
+
+  // Sort by KOs descending
+  lb.sort((a, b) => (b.kos || 0) - (a.kos || 0));
+  lb = lb.slice(0, 10);
+  store.set('gb_leaderboard', JSON.stringify(lb));
+
+  const list = $('leaderboard-list');
+  if (!list) return;
+
+  const medals = ['🥇', '🥈', '🥉'];
+  list.innerHTML = lb.map((e, i) => {
+    const isMe = e.name === myName();
+    const rankClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
+    return `<div class="rank-row ${rankClass} ${isMe ? 'you-row' : ''}">
+      <span class="rank-pos">${medals[i] || '#' + (i + 1)}</span>
+      <span class="rank-dot" style="background:${e.color || '#ff4d6d'}"></span>
+      <span class="rank-name">${esc(e.name)}${isMe ? ' <small style="color:var(--accent-cyan)">(you)</small>' : ''}</span>
+      <span class="rank-score">${e.kos || 0} KOs</span>
+    </div>`;
+  }).join('');
 }
 updateStatsUI();
 
@@ -503,6 +578,17 @@ if (avatarCanvas) {
 function drawAvatarPreview(now) {
   if (!actx || !avatarCanvas) return;
   actx.clearRect(0, 0, 200, 200);
+
+  // Background subtle glow aura
+  actx.save();
+  const aura = actx.createRadialGradient(100, 100, 40, 100, 100, 95);
+  aura.addColorStop(0, mySkin + '33');
+  aura.addColorStop(1, 'transparent');
+  actx.fillStyle = aura;
+  actx.beginPath();
+  actx.arc(100, 100, 95, 0, 6.28);
+  actx.fill();
+  actx.restore();
 
   const cx = 100, cy = 110;
   const wobble = Math.sin(now / 220) * 4;
@@ -825,105 +911,258 @@ const rr = (x, y, w, h, r) => {
   ctx.roundRect(x, y, w, h, r);
 };
 
-// Map & Background Rendering
+// Helper to shade colors for 3D depth faces
+function shadeColor(hex, amount) {
+  if (!hex || !hex.startsWith('#')) return '#1a102a';
+  const raw = hex.replace('#', '');
+  const num = parseInt(raw.length === 3 ? raw.split('').map(c => c + c).join('') : raw, 16);
+  const r = Math.min(255, Math.max(0, (num >> 16) + amount));
+  const g = Math.min(255, Math.max(0, ((num >> 8) & 0xff) + amount));
+  const b = Math.min(255, Math.max(0, (num & 0xff) + amount));
+  return `rgb(${r},${g},${b})`;
+}
+
+// 3D Map & Rich Interactive Background Rendering
 function drawBg(theme, now) {
   if (theme === 'arena') {
+    // 3D Wrestling Arena with audience, camera flashes and volumetric beams
     const g = ctx.createLinearGradient(0, 0, 0, WORLD.h);
-    g.addColorStop(0, '#0a0d1a');
-    g.addColorStop(0.7, '#1b2238');
-    g.addColorStop(1, '#0b0f1d');
+    g.addColorStop(0, '#050711');
+    g.addColorStop(0.65, '#13192e');
+    g.addColorStop(1, '#080c18');
     ctx.fillStyle = g;
     ctx.fillRect(-600, -400, WORLD.w + 1200, WORLD.h + 900);
 
+    // Dynamic sweeping searchlights
     ctx.save();
-    ctx.globalAlpha = 0.12;
-    for (const sx of [200, 640, 1080]) {
-      const lg = ctx.createRadialGradient(sx, 40, 20, sx, 450, 400);
-      lg.addColorStop(0, '#ffffff');
+    for (const sx of [240, 640, 1040]) {
+      const sweep = Math.sin(now / 1200 + sx) * 60;
+      const lg = ctx.createRadialGradient(sx + sweep, 40, 10, sx + sweep, 420, 380);
+      lg.addColorStop(0, 'rgba(255, 255, 255, 0.22)');
+      lg.addColorStop(0.5, 'rgba(77, 210, 255, 0.08)');
       lg.addColorStop(1, 'transparent');
       ctx.fillStyle = lg;
       ctx.beginPath();
-      ctx.arc(sx, 300, 350, 0, 6.28);
+      ctx.moveTo(sx, 0);
+      ctx.lineTo(sx + sweep - 160, 600);
+      ctx.lineTo(sx + sweep + 160, 600);
+      ctx.closePath();
       ctx.fill();
     }
     ctx.restore();
 
-    ctx.fillStyle = '#060810';
-    for (let i = 0; i < 50; i++) {
-      const cx = (i * 28) - 40;
-      const cy = 600 + Math.sin(i * 1.5 + now / 400) * 8;
+    // Stadium seating & cheering crowd silhouettes
+    ctx.fillStyle = '#060812';
+    ctx.fillRect(-200, 520, WORLD.w + 400, 240);
+    for (let row = 0; row < 3; row++) {
+      const ry = 530 + row * 24;
+      ctx.fillStyle = row === 0 ? '#0b1022' : '#070a16';
+      for (let i = 0; i < 48; i++) {
+        const cx = (i * 30) - 60 + (row % 2) * 15;
+        const cy = ry + Math.sin(i * 1.8 + now / 300 + row) * 5;
+        ctx.beginPath();
+        ctx.arc(cx, cy, 11 - row * 2, 0, 6.28);
+        ctx.fill();
+      }
+    }
+
+    // Random camera flashes
+    if (Math.sin(now / 90) > 0.82) {
+      ctx.fillStyle = 'rgba(255,255,255,0.75)';
+      const fx = ((now * 37) % WORLD.w);
+      const fy = 520 + ((now * 19) % 80);
       ctx.beginPath();
-      ctx.arc(cx, cy, 14, 0, 6.28);
+      ctx.arc(fx, fy, 16, 0, 6.28);
       ctx.fill();
     }
   } else if (theme === 'industrial') {
+    // 3D Industrial Factory with molten vat, steam & girders
     const g = ctx.createLinearGradient(0, 0, 0, WORLD.h);
-    g.addColorStop(0, '#1a100d');
-    g.addColorStop(0.65, '#2e1913');
-    g.addColorStop(1, '#ff4400');
+    g.addColorStop(0, '#120b08');
+    g.addColorStop(0.7, '#24120a');
+    g.addColorStop(1, '#ff3b00');
     ctx.fillStyle = g;
     ctx.fillRect(-600, -400, WORLD.w + 1200, WORLD.h + 900);
 
+    // Glowing bubbling molten chute hazard in center
     ctx.save();
-    ctx.globalAlpha = 0.35 + Math.sin(now / 200) * 0.1;
-    ctx.fillStyle = '#ff3700';
-    ctx.fillRect(480, 600, 320, 240);
+    const meltGlow = ctx.createRadialGradient(640, 640, 40, 640, 640, 280);
+    meltGlow.addColorStop(0, 'rgba(255, 90, 0, 0.8)');
+    meltGlow.addColorStop(0.6, 'rgba(255, 30, 0, 0.35)');
+    meltGlow.addColorStop(1, 'transparent');
+    ctx.fillStyle = meltGlow;
+    ctx.fillRect(440, 520, 400, 260);
+
+    // Molten bubbles
+    for (let b = 0; b < 6; b++) {
+      const bx = 500 + ((b * 53 + now / 15) % 280);
+      const by = 600 - ((now / 20 + b * 40) % 60);
+      ctx.fillStyle = '#ffe066';
+      ctx.beginPath();
+      ctx.arc(bx, by, 6 + Math.sin(now / 150 + b) * 3, 0, 6.28);
+      ctx.fill();
+    }
     ctx.restore();
 
-    ctx.fillStyle = '#1f1614';
-    ctx.fillRect(100, 0, 40, 720);
-    ctx.fillRect(1140, 0, 40, 720);
-    ctx.fillRect(0, 200, 1280, 28);
-  } else if (theme === 'highway') {
-    const g = ctx.createLinearGradient(0, 0, 0, WORLD.h);
-    g.addColorStop(0, '#060a17');
-    g.addColorStop(0.7, '#141d33');
-    g.addColorStop(1, '#1b233a');
-    ctx.fillStyle = g;
-    ctx.fillRect(-600, -400, WORLD.w + 1200, WORLD.h + 900);
+    // 3D Steel structural trusses & girders
+    ctx.strokeStyle = '#2d1d16';
+    ctx.lineWidth = 14;
+    ctx.beginPath();
+    ctx.moveTo(80, 0); ctx.lineTo(80, 720);
+    ctx.moveTo(1200, 0); ctx.lineTo(1200, 720);
+    ctx.moveTo(0, 220); ctx.lineTo(WORLD.w, 220);
+    ctx.stroke();
 
-    ctx.fillStyle = '#ffcc00';
-    const offset = (now * 1.2) % 180;
-    for (let x = -200 + offset; x < WORLD.w + 400; x += 180) {
-      ctx.fillRect(x, 650, 80, 8);
+    // Truss cross-bracing
+    ctx.strokeStyle = '#1d120d';
+    ctx.lineWidth = 4;
+    for (let x = 0; x < WORLD.w; x += 160) {
+      ctx.beginPath();
+      ctx.moveTo(x, 220);
+      ctx.lineTo(x + 160, 290);
+      ctx.lineTo(x + 160, 220);
+      ctx.stroke();
     }
-  } else {
+  } else if (theme === 'highway') {
+    // 3D Fast-moving Highway with speed blur & road lanes
     const g = ctx.createLinearGradient(0, 0, 0, WORLD.h);
-    g.addColorStop(0, '#150c2e');
-    g.addColorStop(1, '#471c66');
+    g.addColorStop(0, '#040711');
+    g.addColorStop(0.6, '#0f1628');
+    g.addColorStop(1, '#182035');
     ctx.fillStyle = g;
     ctx.fillRect(-600, -400, WORLD.w + 1200, WORLD.h + 900);
 
+    // Fast asphalt speed streaks
+    const spd = (now * 2.5) % 240;
+    ctx.fillStyle = '#ffcc00';
+    for (let x = -300 + spd; x < WORLD.w + 400; x += 220) {
+      ctx.fillRect(x, 660, 110, 10);
+    }
+    // White lane dividers
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    for (let x = -300 + (spd * 1.3) % 200; x < WORLD.w + 400; x += 180) {
+      ctx.fillRect(x, 620, 60, 4);
+      ctx.fillRect(x, 700, 60, 4);
+    }
+
+    // Overhead highway sign bridge in distance
+    ctx.fillStyle = '#1c2438';
+    ctx.fillRect(400, 180, 480, 45);
+    ctx.fillStyle = '#00d4ff';
+    ctx.font = 'bold 16px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('⚡ BRAWL EXPRESSWAY · NEXT EXIT: CHAOS ⚡', 640, 208);
+  } else {
+    // 3D City Rooftop Skyline with multi-layer parallax & glowing neon
+    const g = ctx.createLinearGradient(0, 0, 0, WORLD.h);
+    g.addColorStop(0, '#0a0518');
+    g.addColorStop(0.65, '#220b38');
+    g.addColorStop(1, '#42125e');
+    ctx.fillStyle = g;
+    ctx.fillRect(-600, -400, WORLD.w + 1200, WORLD.h + 900);
+
+    // Far background stars
     ctx.fillStyle = '#ffffff';
     for (let i = 0; i < 40; i++) {
-      ctx.fillRect((i * 331) % WORLD.w, (i * 97) % 360, 2, 2);
+      ctx.fillRect((i * 331) % WORLD.w, (i * 97) % 340, 2, 2);
     }
 
-    for (let i = 0; i < 15; i++) {
-      const h = 130 + (i * 53) % 210, x = i * 95 - 20;
-      ctx.fillStyle = '#0f0724';
-      ctx.fillRect(x, 720 - h, 80, h + 240);
-      ctx.fillStyle = i % 3 ? '#4dd2ff44' : '#ff4d6d44';
-      for (let w = 0; w < 6; w++) {
-        ctx.fillRect(x + 10 + (w % 3) * 22, 720 - h + 14 + Math.floor(w / 3) * 28, 12, 14);
+    // Distant skyscraper layer (dark purple, smaller)
+    ctx.save();
+    ctx.globalAlpha = 0.45;
+    for (let i = 0; i < 14; i++) {
+      const h = 200 + (i * 73) % 260;
+      const x = i * 105 - 40;
+      ctx.fillStyle = '#110624';
+      ctx.fillRect(x, 720 - h, 95, h + 200);
+      // Tiny distant windows
+      ctx.fillStyle = '#ffd23f33';
+      for (let wy = 0; wy < 6; wy++) {
+        for (let wx = 0; wx < 3; wx++) {
+          if ((i + wy + wx) % 2 === 0) {
+            ctx.fillRect(x + 12 + wx * 24, 720 - h + 15 + wy * 24, 8, 10);
+          }
+        }
       }
     }
+    ctx.restore();
+
+    // Midground skyscraper layer with glowing neon windows
+    for (let i = 0; i < 10; i++) {
+      const h = 160 + (i * 59) % 220;
+      const x = i * 145 - 20;
+      ctx.fillStyle = '#1a0b33';
+      ctx.fillRect(x, 720 - h, 120, h + 240);
+
+      // Window grid with occasional flickering lights
+      for (let w = 0; w < 12; w++) {
+        const wx = x + 14 + (w % 4) * 26;
+        const wy = 720 - h + 20 + Math.floor(w / 4) * 32;
+        const lit = Math.sin(now / 1500 + i * 2 + w) > -0.3;
+        ctx.fillStyle = lit ? (w % 3 === 0 ? '#ff3366aa' : '#00d4ffaa') : 'rgba(255,255,255,0.06)';
+        ctx.fillRect(wx, wy, 16, 20);
+      }
+    }
+
+    // Neon atmospheric fog on the rooftop base
+    const fog = ctx.createLinearGradient(0, 580, 0, 720);
+    fog.addColorStop(0, 'transparent');
+    fog.addColorStop(1, 'rgba(255, 42, 109, 0.22)');
+    ctx.fillStyle = fog;
+    ctx.fillRect(-200, 580, WORLD.w + 400, 140);
   }
 }
 
+// 3D Beveled Platforms with perspective extrusion, shadows and edge glow
 function drawMap(m) {
   for (const s of m.platforms) {
-    ctx.fillStyle = '#00000066';
-    rr(s.x - s.w / 2 + 5, s.y - s.h / 2 + 8, s.w, s.h, 8);
+    const hw = s.w / 2, hh = s.h / 2;
+    const x = s.x - hw, y = s.y - hh;
+    const depth = Math.min(22, s.h * 0.55); // 3D depth extrusion
+
+    // 1. Cast Floor Shadow
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    rr(x + 8, y + s.h + 4, s.w - 4, 18, 8);
     ctx.fill();
 
+    // 2. 3D Front Extrusion Face (darker bottom bevel)
+    ctx.fillStyle = shadeColor(s.color || '#332650', -55);
+    rr(x, y + s.h - 4, s.w, depth, 6);
+    ctx.fill();
+
+    // 3. 3D Right Side Perspective Face
+    ctx.fillStyle = shadeColor(s.color || '#332650', -30);
+    ctx.beginPath();
+    ctx.moveTo(x + s.w, y);
+    ctx.lineTo(x + s.w + depth * 0.45, y + depth * 0.6);
+    ctx.lineTo(x + s.w + depth * 0.45, y + s.h + depth * 0.6);
+    ctx.lineTo(x + s.w, y + s.h);
+    ctx.closePath();
+    ctx.fill();
+
+    // 4. Main Platform Face
     ctx.fillStyle = s.color || '#332650';
-    rr(s.x - s.w / 2, s.y - s.h / 2, s.w, s.h, 8);
+    rr(x, y, s.w, s.h, 8);
     ctx.fill();
 
-    ctx.fillStyle = s.topColor || '#ff4d6d';
-    rr(s.x - s.w / 2, s.y - s.h / 2, s.w, 6, 4);
+    // 5. Glass / Metallic Surface Highlight
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+    rr(x + 4, y + 3, s.w - 8, Math.min(14, s.h * 0.4), 4);
     ctx.fill();
+
+    // 6. Neon Edge Strip on Top
+    ctx.fillStyle = s.topColor || '#ff4d6d';
+    rr(x, y, s.w, 7, 4);
+    ctx.fill();
+
+    // 7. Glowing Edge Stroke
+    ctx.save();
+    ctx.strokeStyle = s.topColor || '#ff4d6d';
+    ctx.lineWidth = 1.5;
+    ctx.globalAlpha = 0.55;
+    rr(x, y, s.w, s.h, 8);
+    ctx.stroke();
+    ctx.restore();
   }
 }
 
@@ -962,7 +1201,6 @@ function drawPlayer(p, meta, now) {
   // Jelly feet
   ctx.fillStyle = '#11111166';
   ctx.beginPath();
-  actx?.arc;
   ctx.arc(-9 + legWobble, 39, 6, 0, 6.28);
   ctx.arc(9 - legWobble, 39, 6, 0, 6.28);
   ctx.fill();
@@ -1141,6 +1379,52 @@ function frame(now) {
   // Background & Platforms
   drawBg(m.theme, now);
   drawMap(m);
+
+  // Render 3D Floating Powerups
+  if (s && s.pu && s.pu.length > 0) {
+    const puIcons = { speed: '⚡', shield: '🛡️', mega: '💥', bomb: '💣' };
+    const puColors = { speed: '#ffd23f', shield: '#00d4ff', mega: '#ff3366', bomb: '#ff7700' };
+
+    for (const pu of s.pu) {
+      const bob = Math.sin(now / 260 + pu.id) * 7;
+      const px = pu.x;
+      const py = pu.y + bob;
+      const glow = puColors[pu.t] || '#ffd23f';
+
+      // 3D Ground drop shadow under floating powerup
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+      ctx.beginPath();
+      ctx.ellipse(px, pu.y + 24, 18, 6, 0, 0, 6.28);
+      ctx.fill();
+
+      // Outer pulsing aura
+      ctx.save();
+      const aura = ctx.createRadialGradient(px, py, 6, px, py, 28);
+      aura.addColorStop(0, glow + 'aa');
+      aura.addColorStop(0.6, glow + '44');
+      aura.addColorStop(1, 'transparent');
+      ctx.fillStyle = aura;
+      ctx.beginPath();
+      ctx.arc(px, py, 28, 0, 6.28);
+      ctx.fill();
+
+      // Translucent orb capsule
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+      ctx.strokeStyle = glow;
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.arc(px, py, 19, 0, 6.28);
+      ctx.fill();
+      ctx.stroke();
+
+      // Powerup icon
+      ctx.font = '22px serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(puIcons[pu.t] || '⚡', px, py);
+      ctx.restore();
+    }
+  }
 
   // Render Players
   if (s) {

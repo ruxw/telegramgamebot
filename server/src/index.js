@@ -29,6 +29,28 @@ const io = new Server(server, { cors: { origin: '*' } });
 const dist = path.resolve(__dirname, '../../client/dist');
 if (fs.existsSync(dist)) app.use(express.static(dist));
 
+// Proxy Telegram profile photo (avoids CORS for client)
+app.get('/api/pfp/:userId', async (req, res) => {
+  if (!BOT_TOKEN) return res.status(404).json({ ok: false });
+  try {
+    const r = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getUserProfilePhotos?user_id=${req.params.userId}&limit=1`, { signal: AbortSignal.timeout(5000) });
+    const j = await r.json();
+    const fid = j.result?.photos?.[0]?.[0]?.file_id;
+    if (!fid) return res.status(404).json({ ok: false });
+    const r2 = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getFile?file_id=${fid}`, { signal: AbortSignal.timeout(5000) });
+    const j2 = await r2.json();
+    const fp = j2.result?.file_path;
+    if (!fp) return res.status(404).json({ ok: false });
+    const imgRes = await fetch(`https://api.telegram.org/file/bot${BOT_TOKEN}/${fp}`, { signal: AbortSignal.timeout(8000) });
+    if (!imgRes.ok) return res.status(404).json({ ok: false });
+    res.setHeader('Content-Type', imgRes.headers.get('content-type') || 'image/jpeg');
+    res.setHeader('Cache-Control', 'public, max-age=300');
+    imgRes.body.pipe(res);
+  } catch {
+    res.status(500).json({ ok: false });
+  }
+});
+
 app.get('/health', (_q, r) => r.json({ ok: true, game: 'Gang Beasts Telegram Game' }));
 app.get('/config', (_q, r) => r.json({
   title: 'Gang Beasts',

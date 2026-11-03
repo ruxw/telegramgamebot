@@ -24,6 +24,9 @@ export class Room {
     this.engine = null;
     this.statics = [];
     this.probe = null;
+    this.powerups = []; // active powerups: { id, type, x, y, active }
+    this.nextPowerId = 1;
+    this.lastPowerupSpawn = 0;
   }
 
   get map() {
@@ -36,6 +39,22 @@ export class Room {
     this.touched = Date.now();
     this.broadcastRoom();
     return true;
+  }
+
+  spawnPowerup() {
+    const types = ['speed', 'shield', 'mega', 'bomb'];
+    const map = this.map;
+    const plat = map.platforms[Math.floor(Math.random() * map.platforms.length)];
+    const type = types[Math.floor(Math.random() * types.length)];
+    const pu = {
+      id: this.nextPowerId++,
+      type,
+      x: plat.x + (Math.random() - 0.5) * (plat.w * 0.6),
+      y: plat.y - plat.h / 2 - 20,
+      active: true
+    };
+    this.powerups.push(pu);
+    return pu;
   }
 
   addPlayer(key, name, sid, customData = {}) {
@@ -112,6 +131,7 @@ export class Room {
       max: this.max,
       map: this.mapId,
       mode: this.mode,
+      powerups: this.powerups,
       players: [...this.players.values()].map(p => {
         // Generous 45-second grace period when minimized before showing offline
         const isOffline = !p.connected && (now - p.dcAt > 45000);
@@ -189,10 +209,15 @@ export class Room {
         lastJump: 0,
         prevP: 0,
         grab: null,
-        onGround: false
+        onGround: false,
+        speedBoost: 0,
+        shield: 0,
+        megaPunch: 0
       });
     }
 
+    this.powerups = [];
+    this.lastPowerupSpawn = Date.now();
     this.phase = 'countdown';
     this.phaseEnd = Date.now() + COUNTDOWN_MS;
     this.tickN = 0;
@@ -264,8 +289,14 @@ export class Room {
     const t = this.nearest(p, 75);
     if (!t || !t.torso) return;
 
-    t.damage += 10;
-    const kb = 6 + t.damage * 0.14;
+    if (t.shield > 0) {
+      // Shield blocks damage increase
+      this.fx('hit', t.torso.position.x, t.torso.position.y, 2);
+      return;
+    }
+    const megaMult = 1 + (p.megaPunch > 0 ? 2 : 0);
+    t.damage += 10 * megaMult;
+    const kb = (6 + t.damage * 0.14) * megaMult;
     Body.setVelocity(t.torso, { x: p.facing * kb, y: -3 - kb * 0.35 });
     Body.setAngularVelocity(t.torso, p.facing * 0.28);
     t.stunUntil = now + 240 + t.damage * 8;
@@ -325,7 +356,7 @@ export class Room {
     p.onGround = this.grounded(p);
 
     if (!stunned) {
-      const max = (p.grab ? 3.2 : 5.0) * (p.onGround ? 1 : 0.82);
+      const max = (p.grab ? 3.2 : 5.0) * (p.onGround ? 1 : 0.82) * (1 + (p.speedBoost > 0 ? 1.5 : 0));
       const k = p.onGround ? 0.24 : 0.09;
       Body.setVelocity(tb, {
         x: tb.velocity.x + (inp.x * max - tb.velocity.x) * k,
@@ -414,6 +445,56 @@ export class Room {
 
       if (this.engine) Engine.update(this.engine, 1000 / 60);
 
+      // Powerup Spawning (up to 2 concurrent, every 7-8s)
+      if (this.powerups.filter(p => p.active).length < 2 && now - this.lastPowerupSpawn > 7500) {
+        this.spawnPowerup();
+        this.lastPowerupSpawn = now;
+      }
+
+      // Powerup Collection & Expiry
+      for (const pu of this.powerups) {
+        if (!pu.active) continue;
+        for (const p of this.players.values()) {
+          if (!p.alive || !p.torso) continue;
+          const dx = p.torso.position.x - pu.x;
+          const dy = p.torso.position.y - pu.y;
+          if (Math.hypot(dx, dy) < 46) {
+            pu.active = false;
+            this.lastPowerupSpawn = now;
+            if (pu.type === 'speed') {
+              p.speedBoost = (p.speedBoost || 0) + 6500;
+            } else if (pu.type === 'shield') {
+              p.shield = (p.shield || 0) + 7000;
+            } else if (pu.type === 'mega') {
+              p.megaPunch = (p.megaPunch || 0) + 8000;
+            } else if (pu.type === 'bomb') {
+              for (const o of this.players.values()) {
+                if (!o.alive || !o.torso || o.key === p.key) continue;
+                const bx = o.torso.position.x - pu.x;
+                const by = o.torso.position.y - pu.y;
+                if (Math.hypot(bx, by) < 190) {
+                  o.damage = Math.min(500, (o.damage || 0) + 45);
+                  Body.setVelocity(o.torso, {
+                    x: (bx > 0 ? 1 : -1) * 16,
+                    y: -12
+                  });
+                  o.stunUntil = now + 650;
+                }
+              }
+              this.fx('bomb', pu.x, pu.y, 30);
+            }
+            this.io.to(this.code).emit('powerup_collect', { id: pu.id, type: pu.type, pid: p.pid });
+            break;
+          }
+        }
+      }
+      this.powerups = this.powerups.filter(p => p.active);
+      for (const p of this.players.values()) {
+        if (p.speedBoost > 0) p.speedBoost = Math.max(0, p.speedBoost - 16.6);
+        if (p.shield > 0) p.shield = Math.max(0, p.shield - 16.6);
+        if (p.megaPunch > 0) p.megaPunch = Math.max(0, p.megaPunch - 16.6);
+      }
+
       const m = this.map;
       for (const p of this.players.values()) {
         if (!p.alive || !p.torso) continue;
@@ -469,7 +550,8 @@ export class Room {
         f: (now < p.stunUntil ? 1 : 0) | (p.grab ? 2 : 0) | (now < p.punchUntil ? 4 : 0),
         fc: p.facing,
         h: p.hat || 'none'
-      } : { i: p.pid, al: 0 })
+      } : { i: p.pid, al: 0 }),
+      pu: this.powerups.filter(p => p.active).map(p => ({ id: p.id, t: p.type, x: Math.round(p.x), y: Math.round(p.y) }))
     };
   }
 

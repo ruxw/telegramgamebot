@@ -67,23 +67,35 @@ if (inTG) {
     store.set('gb_name', tgName);
 
     // Fetch and display Telegram Profile Photo
-    const pfpUrl = u.photo_url || (u.id ? `/api/pfp/${u.id}` : null);
-    if (pfpUrl) {
+    function applyPfp(url) {
       const pfpImg = new Image();
       pfpImg.crossOrigin = 'anonymous';
       pfpImg.onload = () => {
         window._tgPfp = pfpImg;
         if ($('tg-pfp')) {
-          $('tg-pfp').src = pfpUrl;
+          $('tg-pfp').src = url;
           if ($('pfp-ring')) $('pfp-ring').style.display = 'block';
         }
         if ($('hero-pfp-img')) {
-          $('hero-pfp-img').src = pfpUrl;
+          $('hero-pfp-img').src = url;
           $('hero-pfp-img').classList.remove('hidden');
           if ($('hero-avatar-dot')) $('hero-avatar-dot').classList.add('hidden');
         }
       };
-      pfpImg.src = pfpUrl;
+      pfpImg.onerror = () => {
+        if (u.username && !url.includes('userpic')) {
+          applyPfp(`https://t.me/i/userpic/320/${u.username}.jpg`);
+        }
+      };
+      pfpImg.src = url;
+    }
+
+    if (u.photo_url) {
+      applyPfp(u.photo_url);
+    } else if (u.id) {
+      applyPfp(`/api/pfp/${u.id}`);
+    } else if (u.username) {
+      applyPfp(`https://t.me/i/userpic/320/${u.username}.jpg`);
     }
   }
 } else {

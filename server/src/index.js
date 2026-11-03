@@ -35,18 +35,23 @@ app.get('/api/pfp/:userId', async (req, res) => {
   try {
     const r = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getUserProfilePhotos?user_id=${req.params.userId}&limit=1`, { signal: AbortSignal.timeout(5000) });
     const j = await r.json();
-    const fid = j.result?.photos?.[0]?.[0]?.file_id;
-    if (!fid) return res.status(404).json({ ok: false });
+    const photos = j.result?.photos;
+    if (!photos || photos.length === 0 || photos[0].length === 0) {
+      return res.status(404).json({ ok: false, error: 'no_photo' });
+    }
+    const fid = photos[0][0].file_id;
     const r2 = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getFile?file_id=${fid}`, { signal: AbortSignal.timeout(5000) });
     const j2 = await r2.json();
     const fp = j2.result?.file_path;
-    if (!fp) return res.status(404).json({ ok: false });
+    if (!fp) return res.status(404).json({ ok: false, error: 'no_file_path' });
     const imgRes = await fetch(`https://api.telegram.org/file/bot${BOT_TOKEN}/${fp}`, { signal: AbortSignal.timeout(8000) });
     if (!imgRes.ok) return res.status(404).json({ ok: false });
+    const buffer = Buffer.from(await imgRes.arrayBuffer());
     res.setHeader('Content-Type', imgRes.headers.get('content-type') || 'image/jpeg');
-    res.setHeader('Cache-Control', 'public, max-age=300');
-    imgRes.body.pipe(res);
-  } catch {
+    res.setHeader('Cache-Control', 'public, max-age=600');
+    res.send(buffer);
+  } catch (err) {
+    console.error('Error fetching pfp for user:', req.params.userId, err.message);
     res.status(500).json({ ok: false });
   }
 });

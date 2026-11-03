@@ -7,6 +7,8 @@ import { Server } from 'socket.io';
 import { Room } from './rooms/room.js';
 import { validateInitData } from './telegram/auth.js';
 import { startBot } from './telegram/bot.js';
+import { db } from './db.js';
+import { GAME_MODES, TITLES, IN_GAME_COLLECTIBLES, COSMETICS, calcLevel } from '../../shared/modes.js';
 
 // Load .env if present
 try {
@@ -23,6 +25,7 @@ let botUsername = process.env.BOT_USERNAME || '';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3000;
 const app = express();
+app.use(express.json());
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
 
@@ -56,11 +59,49 @@ app.get('/api/pfp/:userId', async (req, res) => {
   }
 });
 
+// Telegram Gifts API endpoint (getUserGifts)
+app.get('/api/gifts/:userId', async (req, res) => {
+  if (!BOT_TOKEN) return res.json({ ok: true, gifts: [] });
+  try {
+    const r = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getUserGifts?user_id=${req.params.userId}`, { signal: AbortSignal.timeout(6000) });
+    const j = await r.json();
+    if (j.ok && j.result?.gifts) {
+      return res.json({ ok: true, gifts: j.result.gifts });
+    }
+    res.json({ ok: true, gifts: [] });
+  } catch (err) {
+    res.json({ ok: true, gifts: [] });
+  }
+});
+
+// Database API: Player profile
+app.get('/api/player/:key', (req, res) => {
+  const p = db.getPlayer(req.params.key);
+  const prog = calcLevel(p.xp);
+  res.json({ ok: true, profile: { ...p, ...prog } });
+});
+
+app.post('/api/player/:key', (req, res) => {
+  const p = db.updatePlayer(req.params.key, req.body || {});
+  const prog = calcLevel(p.xp);
+  res.json({ ok: true, profile: { ...p, ...prog } });
+});
+
+// Mode Leaderboards
+app.get('/api/leaderboard/:mode', (req, res) => {
+  const lb = db.getModeLeaderboard(req.params.mode);
+  res.json({ ok: true, leaderboard: lb });
+});
+
 app.get('/health', (_q, r) => r.json({ ok: true, game: 'Gang Beasts Telegram Game' }));
 app.get('/config', (_q, r) => r.json({
   title: 'Gang Beasts',
   telegramRequired: !!BOT_TOKEN,
-  bot: botUsername
+  bot: botUsername,
+  modes: GAME_MODES,
+  cosmetics: COSMETICS,
+  titles: TITLES,
+  collectibles: IN_GAME_COLLECTIBLES
 }));
 
 const groupRooms = new Map(); // telegram group id -> room code
@@ -78,7 +119,7 @@ const clean = s => String(s || 'Beast').replace(/[^\w \-.]/g, '').trim().slice(0
 
 io.on('connection', socket => {
   let key = null, name = 'Beast', tokens = 150, last = Date.now();
-  let playerCustom = { color: '', hat: 'none' };
+  let playerCustom = { color: '#8a4fff', hat: 'crown', face: 'cool', outfit: 'none', pose: 'flex' };
 
   const allow = () => {
     const n = Date.now();
@@ -110,6 +151,15 @@ io.on('connection', socket => {
   let spUsed = false;
   const resolveStart = sp => {
     if (!sp || typeof sp !== 'string') return null;
+    if (/^watch_live_g_[A-Za-z0-9_\-]{1,32}$/.test(sp)) {
+      const gid = sp.replace('watch_live_g_', '');
+      const code = groupRooms.get(gid);
+      return rooms.get(code) || null;
+    }
+    if (/^watch_[A-Za-z0-9]{3,8}$/.test(sp)) {
+      const code = sp.slice(6).toUpperCase();
+      return rooms.get(code) || null;
+    }
     if (/^r_[A-Za-z0-9]{3,8}$/.test(sp)) {
       const code = sp.slice(2).toUpperCase();
       return rooms.get(code) || null;
@@ -118,7 +168,7 @@ io.on('connection', socket => {
       const gid = sp.slice(2);
       let r = rooms.get(groupRooms.get(gid));
       if (!r || r.phase !== 'lobby' || r.players.size >= r.max) {
-        r = new Room(genCode(), io, { max: 4, isPublic: false });
+        r = new Room(genCode(), io, { max: 4, isPublic: false, groupId: gid });
         rooms.set(r.code, r);
         groupRooms.set(gid, r.code);
       }
@@ -130,20 +180,51 @@ io.on('connection', socket => {
   socket.on('hello', (d, ack) => {
     if (!d || !allow()) return ack?.({ ok: false });
     let sp = '';
-    if (typeof d.skin === 'string' && /^#[0-9a-fA-F]{6}$/.test(d.skin)) playerCustom.color = d.skin;
-    if (typeof d.hat === 'string' && ['none', 'crown', 'shades', 'cowboy', 'viking', 'bow'].includes(d.hat)) playerCustom.hat = d.hat;
+    let tgUser = null;
 
     if (BOT_TOKEN) {
-      const u = validateInitData(d.initData, BOT_TOKEN);
-      if (!u) return ack?.({ ok: false, error: 'Please open this game directly inside Telegram.' });
-      key = 'tg:' + u.id;
-      name = clean(u.name);
-      sp = u.startParam || (typeof d.startParam === 'string' ? d.startParam : '');
+      tgUser = validateInitData(d.initData, BOT_TOKEN);
+      if (!tgUser) return ack?.({ ok: false, error: 'Please open this game directly inside Telegram.' });
+      key = 'tg:' + tgUser.id;
+      name = clean(tgUser.name);
+      sp = tgUser.startParam || (typeof d.startParam === 'string' ? d.startParam : '');
     } else {
       if (typeof d.key !== 'string' || d.key.length < 8 || d.key.length > 64) return ack?.({ ok: false });
       key = d.key;
       name = clean(d.name);
       sp = typeof d.startParam === 'string' ? d.startParam : '';
+    }
+
+    // Load or create player record in persistent DB
+    const dbProfile = db.getPlayer(key, {
+      name,
+      username: tgUser?.username || '',
+      pfpUrl: tgUser?.photo_url || '',
+      isPremium: !!tgUser?.is_premium
+    });
+
+    if (dbProfile.equipped) {
+      playerCustom = {
+        color: dbProfile.equipped.skin || '#8a4fff',
+        hat: dbProfile.equipped.headwear || 'crown',
+        face: dbProfile.equipped.face || 'cool',
+        outfit: dbProfile.equipped.outfit || 'none',
+        pose: dbProfile.equipped.pose || 'flex'
+      };
+    }
+
+    // Handle Spectator Deeplink
+    if (sp && sp.startsWith('watch_')) {
+      const targetRoom = resolveStart(sp);
+      if (targetRoom) {
+        targetRoom.addSpectator(socket.id);
+        socket.join(targetRoom.code);
+        return ack?.({
+          ok: true,
+          isSpectator: true,
+          room: targetRoom.publicState()
+        });
+      }
     }
 
     let r = room();
@@ -157,20 +238,37 @@ io.on('connection', socket => {
       playerRoom.set(key, r.code);
       socket.join(r.code);
       r.broadcastRoom();
-      return ack?.({ ok: true, pid: p.pid, room: r.publicState() });
+      return ack?.({ ok: true, pid: p.pid, room: r.publicState(), profile: dbProfile });
     }
-    ack?.({ ok: true });
+    ack?.({ ok: true, profile: dbProfile });
   });
 
   socket.on('update_custom', d => {
     if (!key || !allow()) return;
-    if (typeof d?.skin === 'string' && /^#[0-9a-fA-F]{6}$/.test(d.skin)) playerCustom.color = d.skin;
-    if (typeof d?.hat === 'string') playerCustom.hat = d.hat;
+    if (d?.skin) playerCustom.color = d.skin;
+    if (d?.hat) playerCustom.hat = d.hat;
+    if (d?.face) playerCustom.face = d.face;
+    if (d?.outfit) playerCustom.outfit = d.outfit;
+    if (d?.pose) playerCustom.pose = d.pose;
+
+    db.updatePlayer(key, {
+      equipped: {
+        skin: playerCustom.color,
+        headwear: playerCustom.hat,
+        face: playerCustom.face,
+        outfit: playerCustom.outfit,
+        pose: playerCustom.pose
+      }
+    });
+
     const r = room();
     const p = r?.players.get(key);
     if (p) {
-      if (playerCustom.color) p.color = playerCustom.color;
-      if (playerCustom.hat) p.hat = playerCustom.hat;
+      p.color = playerCustom.color;
+      p.hat = playerCustom.hat;
+      p.face = playerCustom.face;
+      p.outfit = playerCustom.outfit;
+      p.pose = playerCustom.pose;
       r.broadcastRoom();
     }
   });
@@ -178,7 +276,7 @@ io.on('connection', socket => {
   socket.on('create', (d, ack) => {
     if (!key || !allow()) return;
     const max = [2, 3, 4, 6].includes(d?.max) ? d.max : 4;
-    const r = new Room(genCode(), io, { max, isPublic: false, mapId: d?.map });
+    const r = new Room(genCode(), io, { max, isPublic: false, mapId: d?.map, mode: d?.mode || 'classic' });
     rooms.set(r.code, r);
     enter(r, ack);
   });
@@ -190,18 +288,31 @@ io.on('connection', socket => {
     enter(r, ack);
   });
 
-  socket.on('quick', (_d, ack) => {
+  socket.on('quick', (d, ack) => {
     if (!key || !allow()) return;
-    let r = [...rooms.values()].find(x => x.isPublic && x.phase === 'lobby' && x.players.size < x.max);
+    const requestedMode = d?.mode || 'classic';
+    let r = [...rooms.values()].find(x => x.isPublic && x.phase === 'lobby' && x.mode === requestedMode && x.players.size < x.max);
     if (!r) {
-      r = new Room(genCode(), io, { max: 4, isPublic: true });
+      r = new Room(genCode(), io, { max: 4, isPublic: true, mode: requestedMode });
       rooms.set(r.code, r);
     }
     enter(r, ack);
   });
 
+  socket.on('fill_ai', (d) => {
+    if (!key || !allow()) return;
+    const r = room();
+    if (r && r.phase === 'lobby') {
+      r.fillWithAI(d?.difficulty || 'advanced', d?.archetype || 'aggressive');
+    }
+  });
+
   socket.on('set_map', mapId => {
     if (key && allow()) room()?.setMap(mapId);
+  });
+
+  socket.on('set_mode', modeId => {
+    if (key && allow()) room()?.setMode(modeId);
   });
 
   socket.on('ready', v => {
@@ -221,6 +332,7 @@ io.on('connection', socket => {
     const r = room();
     if (!r) return;
     r.removePlayer(key, false);
+    r.removeSpectator(socket.id);
     r.broadcastRoom();
   });
 });

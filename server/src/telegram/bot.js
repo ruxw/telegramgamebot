@@ -1,5 +1,11 @@
-// Minimal Telegram bot (long polling, zero external dependencies).
+// Minimal Telegram bot with Bot API 9.4 colored buttons, custom emoji icons & group broadcasts
 import { tgEmoji } from '../../../shared/emojis.js';
+import { GroupBroadcastService } from './broadcast.js';
+
+let globalBroadcastService = null;
+export function getBroadcastService() {
+  return globalBroadcastService;
+}
 
 export async function startBot({ token, publicUrl, onUsername }) {
   const api = async (method, body) => {
@@ -18,6 +24,8 @@ export async function startBot({ token, publicUrl, onUsername }) {
   const username = me.username;
   onUsername?.(username);
 
+  globalBroadcastService = new GroupBroadcastService(api, publicUrl, username);
+
   await api('deleteWebhook').catch(() => {});
   await api('setMyCommands', {
     commands: [
@@ -35,7 +43,7 @@ export async function startBot({ token, publicUrl, onUsername }) {
     }
   }).catch(() => {});
 
-  console.log(`Telegram bot @${username} polling for Gang Beasts`);
+  console.log(`Telegram bot @${username} polling for Gang Beasts (Bot API 9.4 enabled)`);
 
   const groupParam = id => 'g_' + String(id).replace(/-/g, 'n');
 
@@ -49,11 +57,25 @@ export async function startBot({ token, publicUrl, onUsername }) {
       await api('sendMessage', {
         chat_id: m.chat.id,
         parse_mode: 'HTML',
-        text: `${tgEmoji('brawl')} <b>GANG BEASTS</b>\nMultiplayer ragdoll brawler.\n\nAdd to a group &amp; send <code>/play</code> to fight friends.`,
+        text: `${tgEmoji('brawl')} <b>GANG BEASTS</b>\nMultiplayer ragdoll brawler with 10 game modes, AI champions & custom avatars.\n\nAdd to a group &amp; send <code>/play</code> to fight friends.`,
         reply_markup: {
           inline_keyboard: [
-            [{ text: `${tgEmoji('play', true)} Play Solo / PvP`, web_app: { url: publicUrl } }],
-            [{ text: `${tgEmoji('plus', true)} Add to Group`, url: `https://t.me/${username}?startgroup=botstart` }]
+            [
+              {
+                text: `${tgEmoji('play', true)} Play Solo / PvP`,
+                web_app: { url: publicUrl },
+                style: 'primary',
+                icon_custom_emoji_id: '5467583879948803288'
+              }
+            ],
+            [
+              {
+                text: `${tgEmoji('plus', true)} Add to Group`,
+                url: `https://t.me/${username}?startgroup=botstart`,
+                style: 'success',
+                icon_custom_emoji_id: '5397916757333654639'
+              }
+            ]
           ]
         }
       });
@@ -65,7 +87,19 @@ export async function startBot({ token, publicUrl, onUsername }) {
         text: `${tgEmoji('brawl')} <b>GANG BEASTS</b>\nLobby ready for <b>${escapeHtml(m.chat.title || 'Group')}</b>.`,
         reply_markup: {
           inline_keyboard: [
-            [{ text: `${tgEmoji('fire', true)} Join Brawl`, url: `https://t.me/${username}?startapp=${gid}` }]
+            [
+              {
+                text: `${tgEmoji('fire', true)} Join Brawl`,
+                url: `https://t.me/${username}?startapp=${gid}`,
+                style: 'primary',
+                icon_custom_emoji_id: '5256047523620995497'
+              },
+              {
+                text: `👁 Watch Live`,
+                url: `https://t.me/${username}?startapp=watch_live_${gid}`,
+                style: 'success'
+              }
+            ]
           ]
         }
       });

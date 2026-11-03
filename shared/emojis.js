@@ -7,88 +7,88 @@ export const EMOJIS = {
   brawl: {
     name: 'Brawl Glove',
     fallback: '🥊',
-    customId: '' // <- Paste custom emoji ID here
+    customId: '5377674666661924559' // <- Paste custom emoji ID here
   },
   fire: {
     name: 'Fire / Hype',
     fallback: '🔥',
-    customId: ''
+    customId: '5256047523620995497'
   },
   swords: {
     name: 'Crossed Swords',
     fallback: '⚔️',
-    customId: ''
+    customId: '5408935401442267103'
   },
   play: {
     name: 'Play Controller',
     fallback: '🎮',
-    customId: ''
+    customId: '5467583879948803288'
   },
   zap: {
     name: 'Lightning Zap',
     fallback: '⚡',
-    customId: ''
+    customId: '5456140674028019486'
   },
 
   // Social & Groups
   group: {
     name: 'Group / Friends',
     fallback: '👥',
-    customId: ''
+    customId: '5453957997418004470'
   },
   plus: {
     name: 'Add / Plus',
     fallback: '➕',
-    customId: ''
+    customId: '5397916757333654639'
   },
   share: {
     name: 'Share / Speaker',
     fallback: '📢',
-    customId: ''
+    customId: '5260450573768990626'
   },
 
   // Ranks & Achievements
   crown: {
     name: 'Crown',
     fallback: '👑',
-    customId: ''
+    customId: '5217822164362739968'
   },
   trophy: {
     name: 'Trophy',
     fallback: '🏆',
-    customId: ''
+    customId: '4949893772201689775'
   },
   star: {
     name: 'Star',
     fallback: '⭐',
-    customId: ''
+    customId: '5226928895189598791'
   },
   skull: {
     name: 'KO Skull',
     fallback: '💀',
-    customId: ''
+    customId: '5470010106974314312'
   },
 
   // Arenas
   rooftop: {
     name: 'Rooftop City',
     fallback: '🏙️',
-    customId: ''
+    customId: '6334830307786622887'
   },
   ring: {
     name: 'Boxing Ring',
     fallback: '🥊',
-    customId: ''
+    customId: '5231406626228948265'
   },
   factory: {
     name: 'Factory Plant',
     fallback: '🏭',
-    customId: ''
+    customId: '5264746606216904351'
   },
   trucks: {
     name: 'Highway Truck',
     fallback: '🚚',
-    customId: ''
+    customId: '5256030416766246766'
   }
 };
 

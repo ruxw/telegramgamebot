@@ -231,28 +231,28 @@ html, body {
   line-height: 1.4;
 }
 
-/* Buttons: Trending Glass Buttons */
+/* Buttons: Trending Vibrant Colored Glass Buttons */
 .btn-glass {
   position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.22);
   border-radius: 16px;
   padding: 13px 22px;
   font-size: 15px;
   font-weight: 900;
   color: #fff;
-  background: rgba(255, 255, 255, 0.12);
-  backdrop-filter: blur(14px);
   cursor: pointer;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   transition: transform 0.08s, filter 0.15s, box-shadow 0.15s;
 }
 
 .btn-glass:active {
-  transform: scale(0.97);
+  transform: scale(0.96);
+  filter: brightness(1.2);
 }
 
 .btn-glass.big-btn {
@@ -262,40 +262,87 @@ html, body {
   letter-spacing: 0.8px;
 }
 
-.btn-glass.primary-glow {
-  background: linear-gradient(135deg, #ff4d6d, #d81b60);
-  border-color: #ff85a1;
-  box-shadow: 0 6px 20px rgba(255, 51, 102, 0.5);
+.btn-glass.small-btn {
+  padding: 8px 16px;
+  font-size: 13px;
+  border-radius: 12px;
+}
+
+/* PRIMARY (Neon Coral / Pink Glow) */
+.btn-primary, .btn-glass.primary-glow {
+  background: linear-gradient(135deg, #ff2a6d, #d1004b);
+  border: 1px solid #ff709b;
+  box-shadow: 0 6px 22px rgba(255, 42, 109, 0.55), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+}
+
+.btn-primary:hover, .btn-glass.primary-glow:hover {
+  box-shadow: 0 8px 28px rgba(255, 42, 109, 0.75), inset 0 1px 1px rgba(255, 255, 255, 0.6);
 }
 
 .btn-glass.pulse-glow {
-  animation: pulseNeon 2.5s infinite;
+  animation: pulsePrimary 2.2s infinite;
 }
 
-@keyframes pulseNeon {
-  0%, 100% { box-shadow: 0 6px 20px rgba(255, 51, 102, 0.45); }
-  50% { box-shadow: 0 8px 30px rgba(255, 51, 102, 0.8); }
+@keyframes pulsePrimary {
+  0%, 100% { box-shadow: 0 6px 22px rgba(255, 42, 109, 0.5); }
+  50% { box-shadow: 0 8px 34px rgba(255, 42, 109, 0.85); transform: translateY(-1px); }
 }
 
-.btn-glass.accent-btn {
-  background: linear-gradient(135deg, rgba(0, 212, 255, 0.3), rgba(0, 153, 255, 0.5));
-  border-color: var(--accent-cyan);
+/* DANGER (Vivid Crimson Alert Red) */
+.btn-danger, .btn-glass.danger-btn {
+  background: linear-gradient(135deg, #ff3b30, #c41c14) !important;
+  border: 1px solid #ff7b73 !important;
+  box-shadow: 0 6px 22px rgba(255, 59, 48, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.35) !important;
+  color: #fff !important;
 }
 
-.btn-glass.secondary-btn {
+.btn-danger:hover, .btn-glass.danger-btn:hover {
+  box-shadow: 0 8px 28px rgba(255, 59, 48, 0.8), inset 0 1px 1px rgba(255, 255, 255, 0.5) !important;
+}
+
+/* SUCCESS (Cyber Emerald / Lime Green) */
+.btn-success, .btn-glass.success-btn {
+  background: linear-gradient(135deg, #00e676, #00a844) !important;
+  border: 1px solid #69f0ae !important;
+  box-shadow: 0 6px 22px rgba(0, 230, 118, 0.55), inset 0 1px 1px rgba(255, 255, 255, 0.4) !important;
+  color: #07260d !important;
+  font-weight: 900;
+  text-shadow: none;
+}
+
+.btn-success:hover, .btn-glass.success-btn:hover {
+  box-shadow: 0 8px 28px rgba(0, 230, 118, 0.75), inset 0 1px 1px rgba(255, 255, 255, 0.6) !important;
+}
+
+/* ACCENT / CYAN (Cyberpunk Cyan) */
+.btn-accent, .btn-glass.accent-btn {
+  background: linear-gradient(135deg, #00d4ff, #0077cc);
+  border: 1px solid #70e4ff;
+  box-shadow: 0 6px 22px rgba(0, 212, 255, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+}
+
+/* TELEGRAM BLUE (Share & Group Invites) */
+.btn-telegram, .btn-glass.telegram-btn {
+  background: linear-gradient(135deg, #2aabee, #1783b9);
+  border: 1px solid #6ed1ff;
+  box-shadow: 0 6px 22px rgba(42, 171, 238, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.35);
+}
+
+/* WARNING / AMBER (Unready / Cancel Ready) */
+.btn-warning, .btn-glass.warning-btn {
+  background: linear-gradient(135deg, #ffd23f, #e69500) !important;
+  border: 1px solid #ffe480 !important;
+  box-shadow: 0 6px 22px rgba(255, 210, 63, 0.55), inset 0 1px 1px rgba(255, 255, 255, 0.4) !important;
+  color: #2b1d00 !important;
+  font-weight: 900;
+  text-shadow: none;
+}
+
+/* SECONDARY (Frosted Glass) */
+.btn-secondary, .btn-glass.secondary-btn {
   background: rgba(255, 255, 255, 0.14);
-}
-
-.btn-glass.danger-btn {
-  background: rgba(255, 50, 50, 0.25);
-  border-color: rgba(255, 50, 50, 0.5);
-  color: #ff9999;
-}
-
-.btn-glass.small-btn {
-  padding: 8px 14px;
-  font-size: 13px;
-  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
 }
 
 .full-w {
@@ -936,12 +983,26 @@ select.glass-input option {
   filter: brightness(1.6);
 }
 
-.touch-glass-btn.btn-punch {
-  background: linear-gradient(135deg, rgba(255, 77, 109, 0.65), rgba(216, 27, 96, 0.75));
-  border-color: #ff85a1;
+/* JUMP — vivid lime green (SUCCESS) */
+.touch-glass-btn.btn-success {
+  background: linear-gradient(135deg, #00e676, #00a844) !important;
+  border: 2px solid #69f0ae !important;
+  box-shadow: 0 4px 18px rgba(0, 230, 118, 0.65), inset 0 1px 1px rgba(255,255,255,0.35) !important;
+  color: #07260d !important;
 }
 
-.touch-glass-btn.btn-grab {
-  background: linear-gradient(135deg, rgba(0, 212, 255, 0.55), rgba(0, 136, 204, 0.7));
-  border-color: #7ce5ff;
+/* PUNCH — vivid crimson red (DANGER) */
+.touch-glass-btn.btn-danger {
+  background: linear-gradient(135deg, #ff3b30, #c41c14) !important;
+  border: 2px solid #ff7b73 !important;
+  box-shadow: 0 4px 18px rgba(255, 59, 48, 0.7), inset 0 1px 1px rgba(255,255,255,0.3) !important;
+  color: #fff !important;
+}
+
+/* GRAB — vivid cyberpunk cyan (ACCENT) */
+.touch-glass-btn.btn-accent {
+  background: linear-gradient(135deg, #00d4ff, #0077cc) !important;
+  border: 2px solid #70e4ff !important;
+  box-shadow: 0 4px 18px rgba(0, 212, 255, 0.65), inset 0 1px 1px rgba(255,255,255,0.35) !important;
+  color: #fff !important;
 }

@@ -348,10 +348,11 @@ function renderRoom() {
 
   const me = room.players.find(p => p.pid === pid);
   $('ready').textContent = me?.ready ? 'UNREADY' : 'READY UP';
+  $('ready').style.background = '';
   if (me?.ready) {
-    $('ready').style.background = 'linear-gradient(135deg, #ffd23f, #f39c12)';
+    $('ready').className = 'btn-glass btn-warning ready-btn';
   } else {
-    $('ready').style.background = '';
+    $('ready').className = 'btn-glass btn-success ready-btn';
   }
 }
 

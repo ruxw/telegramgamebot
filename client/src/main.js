@@ -212,7 +212,12 @@ const doHello = cb => {
   }, r => {
     if (r?.profile) {
       playerProfile = { ...playerProfile, ...r.profile };
+      // Update pfpUrl from server if Telegram didn't supply it on client
+      if (r.profile.pfpUrl && !playerProfile.pfpUrl) {
+        playerProfile.pfpUrl = r.profile.pfpUrl;
+      }
       updateProfileUI();
+      loadTelegramPFP();
     }
     if (r?.isSpectator) {
       isSpectator = true;
@@ -240,6 +245,15 @@ document.querySelectorAll('#bottom-tabs .tab-btn').forEach(btn => {
     btn.classList.add('active');
     const target = $(btn.dataset.tab);
     if (target) target.classList.add('active');
+    // Force-draw pedestal avatar immediately when profile tab becomes visible
+    if (btn.dataset.tab === 'tab-profile') {
+      const c = $('profile-avatar-canvas');
+      if (c) {
+        if (!c.width || c.width < 10) c.width = 220;
+        if (!c.height || c.height < 10) c.height = 230;
+        drawPedestalAvatar(c, performance.now(), playerProfile.equipped, playerProfile.equipped.pose);
+      }
+    }
   };
 });
 
@@ -1563,11 +1577,18 @@ function frame(now) {
   // Draw Hero Profile Avatar ONLY when visible (prevents CPU/GPU waste)
   const profileTab = $('tab-profile');
   if (profileTab && profileTab.classList.contains('active')) {
-    drawPedestalAvatar($('profile-avatar-canvas'), now, playerProfile.equipped, playerProfile.equipped.pose);
+    const pc = $('profile-avatar-canvas');
+    // Ensure canvas has dimensions even if it was hidden during DOM init
+    if (pc && (!pc.width || pc.width < 10)) pc.width = 220;
+    if (pc && (!pc.height || pc.height < 10)) pc.height = 230;
+    drawPedestalAvatar(pc, now, playerProfile.equipped, playerProfile.equipped.pose);
   }
   const custModal = $('customise-screen');
   if (custModal && !custModal.classList.contains('hidden')) {
-    drawPedestalAvatar($('customise-stage-canvas'), now, playerProfile.equipped, playerProfile.equipped.pose);
+    const sc = $('customise-stage-canvas');
+    if (sc && (!sc.width || sc.width < 10)) sc.width = 220;
+    if (sc && (!sc.height || sc.height < 10)) sc.height = 220;
+    drawPedestalAvatar(sc, now, playerProfile.equipped, playerProfile.equipped.pose);
   }
 
   ctx.setTransform(1, 0, 0, 1, 0, 0);

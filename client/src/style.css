@@ -973,33 +973,142 @@ html, body {
 .player-slot-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   margin-bottom: 16px;
 }
 
 .pc-slot {
   background: #0e0c1a;
   border: 1px solid var(--border-card);
-  border-radius: 12px;
+  border-radius: 16px;
   padding: 10px 14px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   font-size: 13px;
   font-weight: 700;
+  transition: border-color 0.15s;
+}
+
+.pc-slot.my-slot {
+  border-color: var(--accent-purple);
+  background: #17132a;
+}
+
+.slot-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.slot-avatar-wrap {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid var(--c, var(--accent-purple));
+  flex-shrink: 0;
+}
+
+.slot-pfp-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.slot-pfp-fallback {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 900;
+  color: #fff;
 }
 
 .slot-dot {
-  width: 10px;
-  height: 10px;
+  position: absolute;
+  bottom: -1px;
+  right: -1px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
-  margin-right: 8px;
+  border: 2px solid #0e0c1a;
+}
+
+.slot-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.slot-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.slot-name {
+  font-size: 14px;
+  font-weight: 800;
+  color: #fff;
+}
+
+.you-badge {
+  background: var(--accent-purple);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 900;
+  padding: 1px 6px;
+  border-radius: 6px;
+}
+
+.ai-badge {
+  background: #312952;
+  color: var(--accent-gold);
+  font-size: 9px;
+  font-weight: 900;
+  padding: 1px 6px;
+  border-radius: 6px;
+}
+
+.slot-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.slot-level {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--accent-gold);
+}
+
+.slot-title {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.lobby-waiting-hint {
+  text-align: center;
+  padding: 10px;
+  font-size: 12px;
+  color: var(--text-muted);
+  background: rgba(138, 79, 255, 0.08);
+  border: 1px dashed var(--border-card);
+  border-radius: 12px;
+  margin-top: 4px;
 }
 
 .slot-status {
   font-size: 11px;
-  padding: 3px 8px;
-  border-radius: 8px;
+  font-weight: 800;
+  padding: 5px 10px;
+  border-radius: 10px;
+  letter-spacing: 0.5px;
 }
 
 .slot-status.ready { background: rgba(0, 230, 118, 0.2); color: var(--success); }

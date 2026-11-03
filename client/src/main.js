@@ -3,6 +3,9 @@ import { MAPS, WORLD } from '../../shared/maps.js';
 import { GAME_MODES, COSMETICS, TITLES, IN_GAME_COLLECTIBLES, calcLevel } from '../../shared/modes.js';
 
 const $ = id => document.getElementById(id);
+const esc = s => String(s || '').replace(/[&<>"']/g, c => ({
+  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+}[c]));
 const store = {
   get: k => { try { return localStorage.getItem(k); } catch { return null; } },
   set: (k, v) => { try { localStorage.setItem(k, v); } catch {} }
@@ -463,20 +466,25 @@ const ack = r => {
   enterRoom(r.pid, r.room);
 };
 
+const ensureConnected = cb => {
+  if (socket.connected) return cb();
+  doHello(() => cb());
+};
+
 $('quick').onclick = () => {
-  doHello(() => socket.emit('quick', { mode: selectedMode }, ack));
+  ensureConnected(() => socket.emit('quick', { mode: selectedMode }, ack));
 };
 
 $('create').onclick = () => {
   const map = $('create-map').value;
   const mode = $('create-mode-select').value;
-  doHello(() => socket.emit('create', { max: 4, map, mode }, ack));
+  ensureConnected(() => socket.emit('create', { max: 4, map, mode }, ack));
 };
 
 $('join').onclick = () => {
   const code = $('code').value.trim();
   if (!code) return say('Please enter room code');
-  doHello(() => socket.emit('join', { code }, ack));
+  ensureConnected(() => socket.emit('join', { code }, ack));
 };
 
 $('add-ai-btn').onclick = () => {
@@ -487,6 +495,18 @@ $('ready').onclick = () => {
   const me = room?.players.find(p => p.pid === pid);
   socket.emit('ready', !me?.ready);
 };
+
+if ($('lobby-mode-select')) {
+  $('lobby-mode-select').onchange = () => {
+    socket.emit('set_mode', $('lobby-mode-select').value);
+  };
+}
+
+if ($('map-select')) {
+  $('map-select').onchange = () => {
+    socket.emit('set_map', $('map-select').value);
+  };
+}
 
 $('leave').onclick = () => {
   socket.emit('leave');
@@ -556,29 +576,51 @@ function renderRoom() {
   $('rcode').textContent = room.code;
   $('room-mode-label').textContent = room.modeName?.toUpperCase() || 'CLASSIC BRAWL';
 
-  $('plist').innerHTML = room.players.map(p => {
+  if ($('lobby-mode-select')) $('lobby-mode-select').value = room.mode || 'classic';
+  if ($('map-select')) $('map-select').value = room.map || 'rooftop';
+
+  const playersList = room.players || [];
+  const slotsHtml = playersList.map(p => {
     const isMe = p.pid === pid;
     const isAway = p.minimized;
     const statusClass = !p.connected ? 'dc' : isAway ? 'away' : p.ready ? 'ready' : 'wait';
     const statusText = !p.connected ? 'OFFLINE' : isAway ? 'AWAY' : p.ready ? 'READY' : 'WAITING';
+    const avatarContent = p.pfpUrl
+      ? `<img src="${p.pfpUrl}" class="slot-pfp-img" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" /><div class="slot-pfp-fallback" style="display:none;background:${p.color};">${esc((p.name || 'B').charAt(0).toUpperCase())}</div>`
+      : `<div class="slot-pfp-fallback" style="background:${p.color};">${esc((p.name || 'B').charAt(0).toUpperCase())}</div>`;
 
-    return `<div class="pc-slot">
-      <div style="display:flex;align-items:center;">
-        <span class="slot-dot" style="background:${p.color};"></span>
-        <span>${esc(p.name)}${isMe ? ' <small style="color:var(--accent-purple-light)">(you)</small>' : ''}</span>
+    return `<div class="pc-slot ${isMe ? 'my-slot' : ''}">
+      <div class="slot-left">
+        <div class="slot-avatar-wrap" style="--c:${p.color};">
+          ${avatarContent}
+          <span class="slot-dot" style="background:${p.color};"></span>
+        </div>
+        <div class="slot-info">
+          <div class="slot-name-row">
+            <span class="slot-name">${esc(p.name)}</span>
+            ${isMe ? '<span class="you-badge">YOU</span>' : ''}
+            ${p.isAI ? '<span class="ai-badge">BOT</span>' : ''}
+          </div>
+          <div class="slot-meta-row">
+            <span class="slot-level">Lv.${p.level || 1}</span>
+            <span class="slot-title">${esc(p.title || 'Street Brawler')}</span>
+          </div>
+        </div>
       </div>
       <span class="slot-status ${statusClass}">${statusText}</span>
     </div>`;
   }).join('');
 
+  const waitingHint = playersList.length < 2
+    ? `<div class="lobby-waiting-hint">⏳ Waiting for fighters... Tap <b>🤖 Add AI</b> to fight bots right away!</div>`
+    : '';
+
+  $('plist').innerHTML = slotsHtml + waitingHint;
+
   const me = room.players.find(p => p.pid === pid);
   $('ready').textContent = me?.ready ? 'UNREADY' : 'READY UP';
   $('ready').className = me?.ready ? 'btn-ghost-dark ready-btn' : 'btn-success ready-btn';
 }
-
-const esc = s => String(s || '').replace(/[&<>"']/g, c => ({
-  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-}[c]));
 
 socket.on('snap', s => {
   snaps.push({ t: performance.now(), s });

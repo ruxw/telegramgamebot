@@ -210,7 +210,11 @@ io.on('connection', socket => {
         hat: dbProfile.equipped.headwear || 'crown',
         face: dbProfile.equipped.face || 'cool',
         outfit: dbProfile.equipped.outfit || 'none',
-        pose: dbProfile.equipped.pose || 'flex'
+        pose: dbProfile.equipped.pose || 'flex',
+        title: dbProfile.title || 'Street Brawler',
+        level: Math.floor(Math.sqrt((dbProfile.xp || 2450) / 100)) + 1,
+        pfpUrl: dbProfile.pfpUrl || (tgUser?.photo_url || ''),
+        username: dbProfile.username || (tgUser?.username ? '@' + tgUser.username : '')
       };
     }
 

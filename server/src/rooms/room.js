@@ -104,6 +104,10 @@ export class Room {
       if (customData.face) p.face = customData.face;
       if (customData.outfit) p.outfit = customData.outfit;
       if (customData.pose) p.pose = customData.pose;
+      if (customData.title) p.title = customData.title;
+      if (customData.level) p.level = customData.level;
+      if (customData.pfpUrl) p.pfpUrl = customData.pfpUrl;
+      if (customData.username) p.username = customData.username;
       this.touched = Date.now();
       return p;
     }
@@ -118,6 +122,10 @@ export class Room {
       face: customData.face || 'normal',
       outfit: customData.outfit || 'none',
       pose: customData.pose || 'stand',
+      title: customData.title || 'Street Brawler',
+      level: customData.level || 1,
+      pfpUrl: customData.pfpUrl || '',
+      username: customData.username || '',
       isAI: !!customData.isAI,
       aiDifficulty: customData.aiDifficulty || 'advanced',
       ready: false,
@@ -136,6 +144,7 @@ export class Room {
     while (this.players.size < this.max) {
       const aiPid = this.nextPid++;
       const names = ['TitanBot', 'ShadowAI', 'RooftopMenace', 'YeetBot', 'IronClad', 'GladiatorAI'];
+      const botTitles = ['Titan Slayer 👹', 'Arena Gladiator ⚔️', 'Yeet Enthusiast 🚀', 'Knockout Artist 💥', 'Street Brawler 🥊'];
       const name = names[aiPid % names.length];
       const aiKey = 'ai:' + aiPid;
       const p = {
@@ -144,10 +153,14 @@ export class Room {
         name: `🤖 ${name}`,
         sid: null,
         color: COLORS[aiPid % COLORS.length],
-        hat: ['crown', 'viking', 'cowboy', 'shades'][aiPid % 4],
+        hat: ['crown', 'viking', 'cowboy', 'shades', 'headphones'][aiPid % 5],
         face: 'evil',
         outfit: 'none',
         pose: 'boxing',
+        title: botTitles[aiPid % botTitles.length],
+        level: Math.floor(Math.random() * 8) + 5,
+        pfpUrl: '',
+        username: `@bot_${name.toLowerCase()}`,
         isAI: true,
         aiDifficulty: difficulty,
         aiArchetype: archetype,
@@ -160,6 +173,14 @@ export class Room {
       };
       this.players.set(aiKey, p);
     }
+    this.maybeStart();
+    this.broadcastRoom();
+  }
+
+  setMode(mode) {
+    if (this.phase !== 'lobby' || !GAME_MODES[mode]) return;
+    this.mode = mode;
+    this.modeName = GAME_MODES[mode].name;
     this.broadcastRoom();
   }
 
@@ -220,6 +241,10 @@ export class Room {
           face: p.face || 'normal',
           outfit: p.outfit || 'none',
           pose: p.pose || 'stand',
+          title: p.title || 'Street Brawler',
+          level: p.level || 1,
+          pfpUrl: p.pfpUrl || '',
+          username: p.username || '',
           isAI: p.isAI,
           ready: p.ready,
           connected: !isOffline,

@@ -62,7 +62,7 @@ export async function startBot({ token, publicUrl, onUsername }) {
           inline_keyboard: [
             [
               {
-                text: `${tgEmoji('play', true)} Play Solo / PvP`,
+                text: 'Play Solo / PvP',
                 web_app: { url: publicUrl },
                 style: 'primary',
                 icon_custom_emoji_id: '5467583879948803288'
@@ -70,7 +70,7 @@ export async function startBot({ token, publicUrl, onUsername }) {
             ],
             [
               {
-                text: `${tgEmoji('plus', true)} Add to Group`,
+                text: 'Add to Group',
                 url: `https://t.me/${username}?startgroup=botstart`,
                 style: 'success',
                 icon_custom_emoji_id: '5397916757333654639'
@@ -89,13 +89,13 @@ export async function startBot({ token, publicUrl, onUsername }) {
           inline_keyboard: [
             [
               {
-                text: `${tgEmoji('fire', true)} Join Brawl`,
+                text: 'Join Brawl',
                 url: `https://t.me/${username}?startapp=${gid}`,
                 style: 'primary',
                 icon_custom_emoji_id: '5256047523620995497'
               },
               {
-                text: `👁 Watch Live`,
+                text: 'Watch Live',
                 url: `https://t.me/${username}?startapp=watch_live_${gid}`,
                 style: 'success'
               }

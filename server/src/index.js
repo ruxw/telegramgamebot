@@ -42,7 +42,8 @@ app.get('/api/pfp/:userId', async (req, res) => {
     if (!photos || photos.length === 0 || photos[0].length === 0) {
       return res.status(404).json({ ok: false, error: 'no_photo' });
     }
-    const fid = photos[0][0].file_id;
+    const photoVariants = photos[0];
+    const fid = photoVariants[photoVariants.length - 1].file_id;
     const r2 = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getFile?file_id=${fid}`, { signal: AbortSignal.timeout(5000) });
     const j2 = await r2.json();
     const fp = j2.result?.file_path;

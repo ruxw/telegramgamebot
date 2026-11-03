@@ -437,6 +437,35 @@ html, body {
   margin-bottom: 16px;
 }
 
+.profile-pfp-wrapper {
+  position: relative;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  border: 2px solid var(--accent-purple);
+  margin-bottom: 6px;
+  overflow: hidden;
+  box-shadow: 0 0 14px var(--accent-purple-glow);
+}
+
+.profile-pfp-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.profile-pfp-fallback {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #8a4fff, #ff4d6d);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-weight: 900;
+  color: #fff;
+}
+
 .p-name {
   margin: 0;
   font-size: 24px;
@@ -1096,4 +1125,142 @@ html, body {
   font-weight: 800;
   color: #fff;
   z-index: 60;
+}
+
+/* IN-GAME HUD & HP CARDS */
+#hud {
+  position: fixed;
+  top: calc(env(safe-area-inset-top) + var(--tg-top, 0px) + 8px);
+  left: 12px;
+  right: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  pointer-events: none;
+  z-index: 45;
+}
+
+#hud-players {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  max-width: 80%;
+}
+
+.hp-card {
+  background: rgba(18, 14, 34, 0.88);
+  border: 1px solid var(--border-card);
+  border-left: 3px solid var(--c, var(--accent-purple));
+  border-radius: 12px;
+  padding: 6px 10px;
+  min-width: 80px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  transition: opacity 0.2s;
+  pointer-events: auto;
+}
+
+.hp-card.dead {
+  opacity: 0.35;
+  filter: grayscale(0.8);
+}
+
+.hp-card .pname {
+  display: block;
+  font-size: 11px;
+  font-weight: 800;
+  color: #fff;
+  white-space: nowrap;
+  max-width: 85px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hp-card .dmg {
+  font-size: 13px;
+  font-weight: 900;
+  color: var(--accent-gold);
+}
+
+.hp-card .bar {
+  width: 100%;
+  height: 4px;
+  background: #110e20;
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 3px;
+}
+
+.hp-card .bar i {
+  display: block;
+  height: 100%;
+  background: var(--c, var(--accent-purple));
+  transition: width 0.1s linear;
+}
+
+/* IN-GAME NOTIFICATION BANNER */
+#banner {
+  position: fixed;
+  top: 42%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(11, 9, 20, 0.94);
+  border: 2px solid var(--accent-purple);
+  padding: 14px 32px;
+  border-radius: 20px;
+  font-size: 26px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  color: #fff;
+  box-shadow: 0 0 30px var(--accent-purple-glow);
+  pointer-events: none;
+  z-index: 80;
+  text-align: center;
+}
+
+/* EMPTY LEADERBOARD STATE */
+.clean-empty-state {
+  text-align: center;
+  padding: 32px 16px;
+  background: var(--bg-card);
+  border: 1px dashed var(--border-card);
+  border-radius: 18px;
+}
+
+.clean-empty-state .empty-icon {
+  font-size: 36px;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.clean-empty-state h4 {
+  margin: 0 0 6px;
+  font-size: 15px;
+  font-weight: 800;
+  color: #fff;
+}
+
+.clean-empty-state p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+/* FPS DEBUG MONITOR OVERLAY */
+#fps-counter {
+  position: fixed;
+  bottom: calc(env(safe-area-inset-bottom) + 64px);
+  left: 12px;
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 10px;
+  font-family: monospace;
+  font-weight: 700;
+  color: #00e676;
+  pointer-events: none;
+  z-index: 90;
 }

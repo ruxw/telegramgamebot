@@ -249,7 +249,7 @@ export class Room {
     const gravityY = this.mode === 'chaos' ? 0.45 : 1;
     const engine = this.engine = Engine.create({ gravity: { y: gravityY } });
     this.statics = this.map.platforms.map(s => Bodies.rectangle(s.x, s.y, s.w, s.h, { isStatic: true, friction: 0.9 }));
-    this.probe = Bodies.rectangle(0, 0, 26, 6, { isSensor: true });
+    this.probe = Bodies.rectangle(0, 0, 32, 12, { isSensor: true });
     Composite.add(engine.world, this.statics);
 
     // Initialize AI controllers for any bot players
@@ -351,7 +351,8 @@ export class Room {
 
   grounded(p) {
     if (!this.probe || !p.torso) return false;
-    Body.setPosition(this.probe, { x: p.torso.position.x, y: p.torso.position.y + 31 });
+    const offsetY = p.isBoss ? 46 : 33;
+    Body.setPosition(this.probe, { x: p.torso.position.x, y: p.torso.position.y + offsetY });
     const others = [...this.players.values()].filter(o => o !== p && o.alive && o.torso).map(o => o.torso);
     return Query.collides(this.probe, this.statics.concat(others)).length > 0;
   }
@@ -450,7 +451,10 @@ export class Room {
     if (!tb) return;
     const inp = p.input;
     const stunned = now < p.stunUntil;
-    p.onGround = this.grounded(p);
+    const isDirectGrounded = this.grounded(p);
+    if (isDirectGrounded) p.lastGroundedAt = now;
+    // Coyote time: considered grounded if on ground or was grounded within last 120ms
+    p.onGround = isDirectGrounded || (now - (p.lastGroundedAt || 0) < 120);
 
     if (!stunned) {
       const maxSpd = (p.grab ? 3.2 : 5.0) * (p.onGround ? 1 : 0.82) * (1 + (p.speedBoost > 0 ? 1.5 : 0)) * (this.mode === 'chaos' ? 1.5 : 1);
@@ -464,8 +468,10 @@ export class Room {
       Body.setAngularVelocity(tb, tb.angularVelocity * 0.8 - wrap(tb.angle) * 0.06);
 
       if (inp.j && p.onGround && now - p.lastJump > 260) {
-        Body.setVelocity(tb, { x: tb.velocity.x, y: this.mode === 'chaos' ? -12 : -8.8 });
+        Body.setVelocity(tb, { x: tb.velocity.x, y: this.mode === 'chaos' ? -12 : -9.5 });
         p.lastJump = now;
+        p.lastGroundedAt = 0;
+        p.onGround = false;
       }
 
       if (inp.p && !p.prevP) {

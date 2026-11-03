@@ -71,7 +71,32 @@ if (inTG) {
     const tgName = [u.first_name, u.last_name].filter(Boolean).join(' ') || u.username || 'Beast';
     playerProfile.name = tgName;
     playerProfile.username = u.username ? '@' + u.username : '';
+    playerProfile.id = u.id;
+    playerProfile.pfpUrl = u.photo_url || (u.id ? `/api/pfp/${u.id}` : null);
   }
+}
+
+// Fetch & Display Telegram Profile Photo
+function loadTelegramPFP() {
+  const pfpImg = $('profile-pfp-img');
+  const pfpFallback = $('profile-pfp-fallback');
+  if (pfpFallback) {
+    pfpFallback.textContent = (playerProfile.name || 'R').charAt(0).toUpperCase();
+  }
+  if (!playerProfile.pfpUrl || !pfpImg) return;
+
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.onload = () => {
+    pfpImg.src = playerProfile.pfpUrl;
+    pfpImg.classList.remove('hidden');
+    if (pfpFallback) pfpFallback.classList.add('hidden');
+  };
+  img.onerror = () => {
+    if (pfpFallback) pfpFallback.classList.remove('hidden');
+    pfpImg.classList.add('hidden');
+  };
+  img.src = playerProfile.pfpUrl;
 }
 
 // Sound Synthesizer
@@ -247,6 +272,7 @@ renderGameModes();
 
 // Profile UI Updater (Matches Mockup)
 function updateProfileUI() {
+  loadTelegramPFP();
   if ($('profile-display-name')) $('profile-display-name').textContent = playerProfile.name;
   if ($('profile-username')) $('profile-username').textContent = playerProfile.username || '@' + playerProfile.name.toLowerCase().replace(/\s/g, '');
   if ($('profile-title-text')) $('profile-title-text').textContent = playerProfile.title || 'Street Brawler';
@@ -286,18 +312,37 @@ document.querySelectorAll('.cat-pill').forEach(pill => {
   };
 });
 
+function getCosmeticsForCat(cat) {
+  const map = {
+    skin: 'skins',
+    skins: 'skins',
+    outfit: 'outfits',
+    outfits: 'outfits',
+    pose: 'poses',
+    poses: 'poses'
+  };
+  const key = map[cat] || cat;
+  return COSMETICS[key] || [];
+}
+
 function renderCustomiseCategory(cat) {
   const grid = $('customise-items-grid');
   if (!grid) return;
 
-  const items = COSMETICS[cat] || [];
-  const currentEquipped = playerProfile.equipped[cat] || (cat === 'skin' ? '#8a4fff' : 'none');
+  const items = getCosmeticsForCat(cat);
+  const currentKey = (cat === 'pose' || cat === 'poses') ? 'pose' : (cat === 'skin' || cat === 'skins') ? 'skin' : (cat === 'outfit' || cat === 'outfits') ? 'outfit' : cat;
+  const currentEquipped = playerProfile.equipped[currentKey] || (currentKey === 'skin' ? '#8a4fff' : 'none');
 
   grid.innerHTML = items.map(item => {
     const isSelected = (item.id === currentEquipped);
+    const isSkin = (cat === 'skin' || cat === 'skins');
+    const iconHtml = isSkin
+      ? `<span class="slot-color-circle" style="background:${item.id};width:28px;height:28px;border-radius:50%;display:inline-block;box-shadow:0 2px 8px rgba(0,0,0,0.5);"></span>`
+      : `<span class="slot-icon">${item.icon || '✨'}</span>`;
+
     return `<div class="cust-item-slot ${isSelected ? 'selected' : ''}" data-id="${item.id}" data-cat="${cat}">
       ${isSelected ? '<span class="check-badge">✓</span>' : ''}
-      <span class="slot-icon">${item.icon || (cat === 'skin' ? '🎨' : '✨')}</span>
+      ${iconHtml}
       <span class="slot-name">${esc(item.name)}</span>
     </div>`;
   }).join('');
@@ -305,7 +350,7 @@ function renderCustomiseCategory(cat) {
   grid.querySelectorAll('.cust-item-slot').forEach(slot => {
     slot.onclick = () => {
       const id = slot.dataset.id;
-      playerProfile.equipped[cat] = id;
+      playerProfile.equipped[currentKey] = id;
       renderCustomiseCategory(cat);
       updateEquippedChips();
     };
@@ -322,6 +367,8 @@ function updateEquippedChips() {
   if (eq.headwear && eq.headwear !== 'none') activeTags.push({ label: 'Headwear', val: eq.headwear, icon: '👑', cat: 'headwear' });
   if (eq.face && eq.face !== 'normal') activeTags.push({ label: 'Face', val: eq.face, icon: '😎', cat: 'face' });
   if (eq.outfit && eq.outfit !== 'none') activeTags.push({ label: 'Outfit', val: eq.outfit, icon: '👕', cat: 'outfit' });
+  if (eq.neck && eq.neck !== 'none') activeTags.push({ label: 'Neck', val: eq.neck, icon: '⛓️', cat: 'neck' });
+  if (eq.hands && eq.hands !== 'none') activeTags.push({ label: 'Hands', val: eq.hands, icon: '🥊', cat: 'hands' });
 
   row.innerHTML = activeTags.map(t => {
     return `<div class="eq-tag">
@@ -362,7 +409,7 @@ $('btn-customise-save').onclick = () => {
   updateProfileUI();
 };
 
-// Mode Leaderboards
+// Mode Leaderboards (No Fake Data)
 function renderLeaderboards(mode = 'classic') {
   const list = $('leaderboard-list');
   if (!list) return;
@@ -370,12 +417,16 @@ function renderLeaderboards(mode = 'classic') {
   fetch(`/api/leaderboard/${mode}`)
     .then(r => r.json())
     .then(d => {
-      const lb = d.leaderboard && d.leaderboard.length ? d.leaderboard : [
-        { name: 'RuXi', score: 184, wins: 74, color: '#8a4fff' },
-        { name: 'RooftopKing', score: 152, wins: 61, color: '#ffd23f' },
-        { name: 'TitanSlayer', score: 129, wins: 48, color: '#00d4ff' },
-        { name: 'ShadowBrawler', score: 96, wins: 34, color: '#ff4d6d' }
-      ];
+      const lb = d.leaderboard && Array.isArray(d.leaderboard) ? d.leaderboard : [];
+
+      if (lb.length === 0) {
+        list.innerHTML = `<div class="clean-empty-state">
+          <span class="empty-icon">🥊</span>
+          <h4>No Brawlers Ranked Yet</h4>
+          <p>Win a brawl in <b>${esc(mode.toUpperCase())}</b> to claim the #1 spot on the leaderboard!</p>
+        </div>`;
+        return;
+      }
 
       const medals = ['🥇', '🥈', '🥉'];
       list.innerHTML = lb.map((e, i) => {
@@ -384,11 +435,17 @@ function renderLeaderboards(mode = 'classic') {
           <span class="clean-rank-pos">${medals[i] || '#' + (i + 1)}</span>
           <span class="clean-rank-dot" style="background:${e.color || '#8a4fff'}"></span>
           <span class="clean-rank-name">${esc(e.name)}${isMe ? ' ★' : ''}</span>
-          <span class="clean-rank-score">${e.score} pts</span>
+          <span class="clean-rank-score">${e.score || 0} pts</span>
         </div>`;
       }).join('');
     })
-    .catch(() => {});
+    .catch(() => {
+      list.innerHTML = `<div class="clean-empty-state">
+        <span class="empty-icon">⚠️</span>
+        <h4>Leaderboard Offline</h4>
+        <p>Could not load leaderboard data. Please check back soon.</p>
+      </div>`;
+    });
 }
 
 document.querySelectorAll('.rank-tab-btn').forEach(btn => {
@@ -707,7 +764,7 @@ const rr = (x, y, w, h, r) => {
 
 // Pedestal Avatar Drawer (3D Aesthetic Matching Mockup)
 function drawPedestalAvatar(c, now, custom, pose = 'stand') {
-  if (!c) return;
+  if (!c || c.offsetParent === null) return;
   const actx = c.getContext('2d');
   actx.clearRect(0, 0, c.width, c.height);
 
@@ -748,6 +805,14 @@ function drawPedestalAvatar(c, now, custom, pose = 'stand') {
   actx.roundRect(cx - 32, cy - 20 + wobble, 64, 60, 26);
   actx.fill();
 
+  // Outfit rendering
+  if (custom.outfit && custom.outfit !== 'none') {
+    actx.fillStyle = custom.outfit === 'tuxedo' ? '#111' : custom.outfit === 'boxer' ? '#ff3b30' : custom.outfit === 'ninja' ? '#1a1a24' : '#ffd23f';
+    actx.beginPath();
+    actx.roundRect(cx - 30, cy - 8 + wobble, 60, 42, 14);
+    actx.fill();
+  }
+
   // Torso Highlight
   actx.fillStyle = 'rgba(255,255,255,0.22)';
   actx.beginPath();
@@ -760,17 +825,30 @@ function drawPedestalAvatar(c, now, custom, pose = 'stand') {
   actx.lineCap = 'round';
   actx.beginPath();
   if (pose === 'flex') {
-    // Biceps Flex
     actx.moveTo(cx - 24, cy - 6 + wobble);
     actx.lineTo(cx - 44, cy - 22 + wobble);
     actx.moveTo(cx + 24, cy - 6 + wobble);
     actx.lineTo(cx + 42, cy + 18 + wobble);
   } else if (pose === 'victory') {
-    // Both arms up
     actx.moveTo(cx - 24, cy - 6 + wobble);
     actx.lineTo(cx - 44, cy - 36 + wobble);
     actx.moveTo(cx + 24, cy - 6 + wobble);
     actx.lineTo(cx + 44, cy - 36 + wobble);
+  } else if (pose === 'double_flex') {
+    actx.moveTo(cx - 24, cy - 6 + wobble);
+    actx.lineTo(cx - 42, cy - 24 + wobble);
+    actx.moveTo(cx + 24, cy - 6 + wobble);
+    actx.lineTo(cx + 42, cy - 24 + wobble);
+  } else if (pose === 'boxing') {
+    actx.moveTo(cx - 24, cy - 6 + wobble);
+    actx.lineTo(cx - 36, cy - 14 + wobble);
+    actx.moveTo(cx + 24, cy - 6 + wobble);
+    actx.lineTo(cx + 46, cy - 10 + wobble);
+  } else if (pose === 'dab') {
+    actx.moveTo(cx - 24, cy - 6 + wobble);
+    actx.lineTo(cx - 46, cy - 28 + wobble);
+    actx.moveTo(cx + 24, cy - 6 + wobble);
+    actx.lineTo(cx + 40, cy - 20 + wobble);
   } else {
     // Confident standing
     actx.moveTo(cx - 24, cy - 6 + wobble);
@@ -794,18 +872,42 @@ function drawPedestalAvatar(c, now, custom, pose = 'stand') {
   actx.fill();
 
   // Face Expression (Cool Shades from mockup as default)
-  if (custom.face === 'cool' || custom.headwear === 'shades') {
-    // Sleek black sunglasses
+  const face = custom.face || 'cool';
+  if (face === 'cool' || custom.headwear === 'shades') {
     actx.fillStyle = '#111116';
     actx.beginPath();
     actx.roundRect(cx - 22, headY - 8, 20, 14, 4);
     actx.roundRect(cx + 2, headY - 8, 20, 14, 4);
     actx.fillRect(cx - 4, headY - 4, 8, 4);
     actx.fill();
-    // Glass shine
     actx.fillStyle = 'rgba(255,255,255,0.4)';
     actx.fillRect(cx - 18, headY - 6, 6, 3);
     actx.fillRect(cx + 6, headY - 6, 6, 3);
+  } else if (face === 'angry') {
+    for (const ex of [-10, 10]) {
+      actx.fillStyle = '#fff';
+      actx.beginPath();
+      actx.arc(cx + ex, headY - 4, 7, 0, 6.28);
+      actx.fill();
+      actx.fillStyle = '#111';
+      actx.beginPath();
+      actx.arc(cx + ex, headY - 4, 3, 0, 6.28);
+      actx.fill();
+    }
+    // Angry angled brows
+    actx.strokeStyle = '#111';
+    actx.lineWidth = 3;
+    actx.beginPath();
+    actx.moveTo(cx - 16, headY - 12); actx.lineTo(cx - 4, headY - 8);
+    actx.moveTo(cx + 16, headY - 12); actx.lineTo(cx + 4, headY - 8);
+    actx.stroke();
+  } else if (face === 'sleepy') {
+    actx.strokeStyle = '#111';
+    actx.lineWidth = 3;
+    actx.beginPath();
+    actx.moveTo(cx - 16, headY - 4); actx.lineTo(cx - 6, headY - 4);
+    actx.moveTo(cx + 6, headY - 4); actx.lineTo(cx + 16, headY - 4);
+    actx.stroke();
   } else {
     // Googly eyes
     for (const ex of [-10, 10]) {
@@ -820,8 +922,9 @@ function drawPedestalAvatar(c, now, custom, pose = 'stand') {
     }
   }
 
-  // Headwear: Crown
-  if (custom.headwear === 'crown') {
+  // Headwear
+  const hw = custom.headwear;
+  if (hw === 'crown') {
     actx.fillStyle = '#ffd23f';
     actx.strokeStyle = '#c89e00';
     actx.lineWidth = 2;
@@ -836,6 +939,63 @@ function drawPedestalAvatar(c, now, custom, pose = 'stand') {
     actx.closePath();
     actx.fill();
     actx.stroke();
+  } else if (hw === 'cowboy') {
+    actx.fillStyle = '#8b5a2b';
+    actx.beginPath();
+    actx.ellipse(cx, headY - 26, 36, 10, 0, 0, 6.28);
+    actx.fill();
+    actx.beginPath();
+    actx.roundRect(cx - 18, headY - 46, 36, 24, 8);
+    actx.fill();
+  } else if (hw === 'tophat') {
+    actx.fillStyle = '#1a1a24';
+    actx.beginPath();
+    actx.ellipse(cx, headY - 26, 32, 8, 0, 0, 6.28);
+    actx.fill();
+    actx.fillRect(cx - 16, headY - 56, 32, 32);
+    actx.fillStyle = '#ff3b30';
+    actx.fillRect(cx - 16, headY - 32, 32, 6);
+  } else if (hw === 'viking') {
+    actx.fillStyle = '#888';
+    actx.beginPath();
+    actx.arc(cx, headY - 24, 22, Math.PI, 0);
+    actx.fill();
+    // Horns
+    actx.fillStyle = '#ffd23f';
+    actx.beginPath();
+    actx.moveTo(cx - 20, headY - 26); actx.lineTo(cx - 32, headY - 44); actx.lineTo(cx - 14, headY - 32);
+    actx.moveTo(cx + 20, headY - 26); actx.lineTo(cx + 32, headY - 44); actx.lineTo(cx + 14, headY - 32);
+    actx.fill();
+  } else if (hw === 'halo') {
+    actx.strokeStyle = '#ffd23f';
+    actx.lineWidth = 5;
+    actx.beginPath();
+    actx.ellipse(cx, headY - 44, 24, 8, 0, 0, 6.28);
+    actx.stroke();
+  } else if (hw === 'headphones') {
+    actx.strokeStyle = '#fff';
+    actx.lineWidth = 4;
+    actx.beginPath();
+    actx.arc(cx, headY, 34, Math.PI, 0);
+    actx.stroke();
+    actx.fillStyle = '#ff4d6d';
+    actx.fillRect(cx - 36, headY - 10, 8, 20);
+    actx.fillRect(cx + 28, headY - 10, 8, 20);
+  } else if (hw === 'beanie') {
+    actx.fillStyle = '#ff4d6d';
+    actx.beginPath();
+    actx.arc(cx, headY - 18, 28, Math.PI, 0);
+    actx.fill();
+    actx.fillStyle = '#fff';
+    actx.beginPath();
+    actx.arc(cx, headY - 46, 7, 0, 6.28);
+    actx.fill();
+  } else if (hw === 'cap') {
+    actx.fillStyle = '#00d4ff';
+    actx.beginPath();
+    actx.arc(cx, headY - 20, 26, Math.PI, 0);
+    actx.fill();
+    actx.fillRect(cx - 12, headY - 24, 40, 6);
   }
 }
 
@@ -942,13 +1102,45 @@ function drawPlayer(p, meta, now) {
   ctx.fillText(meta.name, p.hx, p.hy - 28);
 }
 
-// Main Animation Loop
+// Performance & 60 FPS Monitor
+let frameCount = 0, lastFpsUpdate = performance.now(), currentFps = 60, frameTimeMs = 16.6;
+let lastFrameTime = performance.now();
+let cachedBgGradient = null;
+
+// Reconnect listeners
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && !socket.connected) hello();
+});
+window.addEventListener('focus', () => {
+  if (!socket.connected) hello();
+});
+
+// Main Animation Loop (Target 60 FPS)
 function frame(now) {
   requestAnimationFrame(frame);
 
-  // Animate Hero Profile Avatar Pedestal
-  drawPedestalAvatar($('profile-avatar-canvas'), now, playerProfile.equipped, playerProfile.equipped.pose);
-  if (!$('customise-screen').classList.contains('hidden')) {
+  const delta = now - lastFrameTime;
+  lastFrameTime = now;
+  frameTimeMs = delta;
+  frameCount++;
+
+  if (now - lastFpsUpdate >= 500) {
+    currentFps = Math.round((frameCount * 1000) / (now - lastFpsUpdate));
+    frameCount = 0;
+    lastFpsUpdate = now;
+    const fpsEl = $('fps-counter');
+    if (fpsEl && !fpsEl.classList.contains('hidden')) {
+      fpsEl.textContent = `${currentFps} FPS · ${frameTimeMs.toFixed(1)}ms`;
+    }
+  }
+
+  // Draw Hero Profile Avatar ONLY when visible (prevents CPU/GPU waste)
+  const profileTab = $('tab-profile');
+  if (profileTab && profileTab.classList.contains('active')) {
+    drawPedestalAvatar($('profile-avatar-canvas'), now, playerProfile.equipped, playerProfile.equipped.pose);
+  }
+  const custModal = $('customise-screen');
+  if (custModal && !custModal.classList.contains('hidden')) {
     drawPedestalAvatar($('customise-stage-canvas'), now, playerProfile.equipped, playerProfile.equipped.pose);
   }
 
@@ -990,11 +1182,13 @@ function frame(now) {
   ctx.setTransform(camZoom, 0, 0, camZoom, viewX, viewY);
   ctx.save();
 
-  // Dark Minimal Arena Canvas Background
-  const g = ctx.createLinearGradient(0, 0, 0, WORLD.h);
-  g.addColorStop(0, '#0a0814');
-  g.addColorStop(1, '#19132c');
-  ctx.fillStyle = g;
+  // Cached Dark Minimal Arena Canvas Background
+  if (!cachedBgGradient) {
+    cachedBgGradient = ctx.createLinearGradient(0, 0, 0, WORLD.h);
+    cachedBgGradient.addColorStop(0, '#0a0814');
+    cachedBgGradient.addColorStop(1, '#19132c');
+  }
+  ctx.fillStyle = cachedBgGradient;
   ctx.fillRect(-600, -400, WORLD.w + 1200, WORLD.h + 900);
 
   draw3DMap(m);
@@ -1046,8 +1240,9 @@ function frame(now) {
     }
   }
 
-  // Comic Pops
-  for (const pop of comicPops) {
+  // Comic Pops (In-place loop to avoid creating arrays every frame)
+  for (let i = comicPops.length - 1; i >= 0; i--) {
+    const pop = comicPops[i];
     ctx.save();
     ctx.font = `900 ${Math.round(24 * pop.sc)}px system-ui, sans-serif`;
     ctx.textAlign = 'center';
@@ -1056,8 +1251,10 @@ function frame(now) {
     ctx.restore();
     pop.y -= 0.6;
     pop.l -= 0.025;
+    if (pop.l <= 0) {
+      comicPops.splice(i, 1);
+    }
   }
-  comicPops = comicPops.filter(p => p.l > 0);
 
   ctx.restore();
 }

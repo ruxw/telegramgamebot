@@ -1,4 +1,6 @@
-// Minimal Telegram bot (long polling, zero external dependencies). Sends Play buttons for groups & DMs.
+// Minimal Telegram bot (long polling, zero external dependencies).
+import { tgEmoji } from '../../../shared/emojis.js';
+
 export async function startBot({ token, publicUrl, onUsername }) {
   const api = async (method, body) => {
     const res = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
@@ -19,16 +21,16 @@ export async function startBot({ token, publicUrl, onUsername }) {
   await api('deleteWebhook').catch(() => {});
   await api('setMyCommands', {
     commands: [
-      { command: 'play', description: 'Start a Gang Beasts brawl in this group' },
-      { command: 'fight', description: 'Join or host a Gang Beasts brawl' },
-      { command: 'start', description: 'Open Gang Beasts Telegram Mini App' }
+      { command: 'play', description: 'Start brawl in this group' },
+      { command: 'fight', description: 'Join group brawl' },
+      { command: 'start', description: 'Open Gang Beasts' }
     ]
   }).catch(() => {});
 
   await api('setChatMenuButton', {
     menu_button: {
       type: 'web_app',
-      text: '🥊 Play Gang Beasts',
+      text: `${tgEmoji('brawl', true)} Play`,
       web_app: { url: publicUrl }
     }
   }).catch(() => {});
@@ -47,11 +49,11 @@ export async function startBot({ token, publicUrl, onUsername }) {
       await api('sendMessage', {
         chat_id: m.chat.id,
         parse_mode: 'HTML',
-        text: '🥊 <b>GANG BEASTS (Telegram Edition)</b>\n\nSilly gelatinous ragdoll fighters with physics-based combat!\nPunch, grab, lift, and throw your friends off rooftops, wrestling rings, and factory ledges!\n\n👥 <b>Play with friends in groups:</b>\n1. Add this bot to any Telegram group.\n2. Send <code>/play</code> in that group.\n3. Everyone taps <b>Join Brawl</b> to jump directly into the group match!',
+        text: `${tgEmoji('brawl')} <b>GANG BEASTS</b>\nMultiplayer ragdoll brawler.\n\nAdd to a group &amp; send <code>/play</code> to fight friends.`,
         reply_markup: {
           inline_keyboard: [
-            [{ text: '🎮 Play Gang Beasts Solo/PVP', web_app: { url: publicUrl } }],
-            [{ text: '➕ Add to Group Chat', url: `https://t.me/${username}?startgroup=botstart` }]
+            [{ text: `${tgEmoji('play', true)} Play Solo / PvP`, web_app: { url: publicUrl } }],
+            [{ text: `${tgEmoji('plus', true)} Add to Group`, url: `https://t.me/${username}?startgroup=botstart` }]
           ]
         }
       });
@@ -60,10 +62,10 @@ export async function startBot({ token, publicUrl, onUsername }) {
       await api('sendMessage', {
         chat_id: m.chat.id,
         parse_mode: 'HTML',
-        text: `🥊 <b>GANG BEASTS BRAWL</b>\n\nA fight lobby is ready for <b>${escapeHtml(m.chat.title || 'this group')}</b>!\nTap below to jump into the arena. 2–6 beasts can enter!`,
+        text: `${tgEmoji('brawl')} <b>GANG BEASTS</b>\nLobby ready for <b>${escapeHtml(m.chat.title || 'Group')}</b>.`,
         reply_markup: {
           inline_keyboard: [
-            [{ text: '🔥 Join Group Brawl', url: `https://t.me/${username}?startapp=${gid}` }]
+            [{ text: `${tgEmoji('fire', true)} Join Brawl`, url: `https://t.me/${username}?startapp=${gid}` }]
           ]
         }
       });

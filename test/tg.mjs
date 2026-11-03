@@ -1,0 +1,24 @@
+import crypto from 'crypto';
+import { io } from 'socket.io-client';
+import { spawn } from 'child_process';
+const TOKEN = '123456:TEST-TOKEN';
+const sign = (user, extra = {}, tok = TOKEN) => {
+  const p = new URLSearchParams({ auth_date: String(Math.floor(Date.now() / 1000)), user: JSON.stringify(user), ...extra });
+  const dcs = [...p.entries()].map(([k, v]) => `${k}=${v}`).sort().join('\n');
+  const sec = crypto.createHmac('sha256', 'WebAppData').update(tok).digest();
+  p.set('hash', crypto.createHmac('sha256', sec).update(dcs).digest('hex')); return p.toString();
+};
+const srv = spawn('node', ['server/src/index.js'], { env: { ...process.env, PORT: 3112, BOT_TOKEN: TOKEN, PUBLIC_URL: '' }, stdio: 'inherit' });
+await new Promise(r => setTimeout(r, 800));
+const hello = d => new Promise(res => { const s = io('http://localhost:3112'); s.emit('hello', d, r => res({ s, r })); });
+const ok = (c, m) => { console.log(c ? 'PASS' : 'FAIL', m); if (!c) process.exitCode = 1; };
+ok(!(await hello({ key: 'guestguest123', name: 'x' })).r.ok, 'guest rejected when BOT_TOKEN set');
+ok(!(await hello({ initData: sign({ id: 1, first_name: 'Eve' }, {}, 'wrong:token') })).r.ok, 'forged signature rejected');
+const t = sign({ id: 7, first_name: 'Mal' }); ok(!(await hello({ initData: t.replace('Mal', 'Adm') })).r.ok, 'tampered data rejected');
+const a = await hello({ initData: sign({ id: 11, first_name: 'Ann' }, { start_param: 'g_n1001234' }) });
+const b = await hello({ initData: sign({ id: 22, first_name: 'Bo' }, { start_param: 'g_n1001234' }) });
+ok(a.r.ok && b.r.ok && a.r.room?.code && a.r.room.code === b.r.room?.code, 'two group members land in the same room: ' + a.r.room?.code);
+ok(b.r.room.players.map(p => p.name).join() === 'Ann,Bo', 'names come from validated Telegram data');
+const c = await hello({ initData: sign({ id: 33, first_name: 'Cy' }, { start_param: 'r_' + a.r.room.code }) });
+ok(c.r.room?.code === a.r.room.code, 'invite link r_CODE joins that room');
+srv.kill(); process.exit();

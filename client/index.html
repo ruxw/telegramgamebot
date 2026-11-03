@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Gang Beasts - Telegram Game</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="stylesheet" href="/src/style.css">
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<!-- Top in-game HUD -->
+<div id="hud" class="hidden">
+  <div id="hud-players"></div>
+  <button id="sound-btn" class="icon-btn" title="Toggle Sound">🔊</button>
+</div>
+
+<div id="banner" class="hidden"></div>
+
+<!-- Main Menu Screen -->
+<section id="menu" class="screen">
+  <div class="logo-box">
+    <h1>GANG<span>BEASTS</span></h1>
+    <span class="badge">TELEGRAM BRAWLER</span>
+  </div>
+  <p class="tag">Wobbly Ragdoll Physics · Punch, Grab &amp; Yeet Your Friends</p>
+  
+  <input id="name" maxlength="16" placeholder="Beast Name" autocomplete="off">
+  
+  <div class="row">
+    <select id="size">
+      <option value="2">1 vs 1 (2 Beasts)</option>
+      <option value="3">3 Beasts</option>
+      <option value="4" selected>4 Beasts (Party)</option>
+      <option value="6">6 Beasts (Mayhem)</option>
+    </select>
+    <button id="create" class="big">Create Lobby</button>
+  </div>
+  
+  <button id="quick" class="big alt">Quick Match</button>
+  
+  <div class="row">
+    <input id="code" maxlength="5" placeholder="ROOM CODE">
+    <button id="join">Join</button>
+  </div>
+  
+  <p id="err" class="err"></p>
+</section>
+
+<!-- Room / Lobby Screen -->
+<section id="room" class="screen hidden">
+  <div class="room-header">
+    <h2>LOBBY: <b id="rcode"></b></h2>
+    <button id="invite" class="small alt">📢 Invite Group Members</button>
+  </div>
+
+  <div class="map-picker">
+    <label>ARENA:</label>
+    <select id="map-select">
+      <option value="rooftop">🏙️ Rooftop Rumble</option>
+      <option value="ring">🥊 Wrestling Ring</option>
+      <option value="factory">🏭 Meat Factory</option>
+      <option value="trucks">🚚 Highway Trucks</option>
+    </select>
+  </div>
+
+  <div id="plist"></div>
+
+  <div class="row btn-row">
+    <button id="ready" class="big">READY UP</button>
+    <button id="leave" class="small">Leave</button>
+  </div>
+  
+  <p class="hint">
+    🎮 <b>Controls:</b> WASD/Arrows to Move · Space to Jump · J or Left Click to Punch · K/Shift or Right Click to Grab (Hold) · Grab + Punch = Throw!
+  </p>
+</section>
+
+<!-- Onscreen Touch Controls for Telegram Mobile -->
+<div id="touch" class="hidden">
+  <div id="stick"><div id="knob"></div></div>
+  <div id="btns">
+    <button data-k="j" class="touch-btn">JUMP</button>
+    <button data-k="p" class="touch-btn punch">PUNCH</button>
+    <button data-k="g" class="touch-btn grab">GRAB</button>
+  </div>
+</div>
+
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>

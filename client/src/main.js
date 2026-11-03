@@ -806,14 +806,19 @@ const rr = (x, y, w, h, r) => {
 
 // Pedestal Avatar Drawer (3D Aesthetic Matching Mockup)
 function drawPedestalAvatar(c, now, custom, pose = 'stand') {
-  if (!c || c.offsetParent === null) return;
+  if (!c) return;
   const actx = c.getContext('2d');
+  if (!actx) return;
+  if (!c.width || c.width < 10) c.width = 220;
+  if (!c.height || c.height < 10) c.height = 230;
   actx.clearRect(0, 0, c.width, c.height);
 
   const cx = c.width / 2;
   const cy = c.height / 2 + 10;
   const wobble = Math.sin(now / 260) * 3;
-  const skin = custom.skin || '#8a4fff';
+  const eq = custom || playerProfile?.equipped || {};
+  const skin = eq.skin || '#8a4fff';
+  const curPose = pose || eq.pose || 'stand';
 
   // Soft purple glow aura behind character
   const aura = actx.createRadialGradient(cx, cy - 20, 20, cx, cy - 20, 80);
@@ -848,8 +853,8 @@ function drawPedestalAvatar(c, now, custom, pose = 'stand') {
   actx.fill();
 
   // Outfit rendering
-  if (custom.outfit && custom.outfit !== 'none') {
-    actx.fillStyle = custom.outfit === 'tuxedo' ? '#111' : custom.outfit === 'boxer' ? '#ff3b30' : custom.outfit === 'ninja' ? '#1a1a24' : '#ffd23f';
+  if (eq.outfit && eq.outfit !== 'none') {
+    actx.fillStyle = eq.outfit === 'tuxedo' ? '#111' : eq.outfit === 'boxer' ? '#ff3b30' : eq.outfit === 'ninja' ? '#1a1a24' : '#ffd23f';
     actx.beginPath();
     actx.roundRect(cx - 30, cy - 8 + wobble, 60, 42, 14);
     actx.fill();
@@ -866,27 +871,27 @@ function drawPedestalAvatar(c, now, custom, pose = 'stand') {
   actx.lineWidth = 14;
   actx.lineCap = 'round';
   actx.beginPath();
-  if (pose === 'flex') {
+  if (curPose === 'flex') {
     actx.moveTo(cx - 24, cy - 6 + wobble);
     actx.lineTo(cx - 44, cy - 22 + wobble);
     actx.moveTo(cx + 24, cy - 6 + wobble);
     actx.lineTo(cx + 42, cy + 18 + wobble);
-  } else if (pose === 'victory') {
+  } else if (curPose === 'victory') {
     actx.moveTo(cx - 24, cy - 6 + wobble);
     actx.lineTo(cx - 44, cy - 36 + wobble);
     actx.moveTo(cx + 24, cy - 6 + wobble);
     actx.lineTo(cx + 44, cy - 36 + wobble);
-  } else if (pose === 'double_flex') {
+  } else if (curPose === 'double_flex') {
     actx.moveTo(cx - 24, cy - 6 + wobble);
     actx.lineTo(cx - 42, cy - 24 + wobble);
     actx.moveTo(cx + 24, cy - 6 + wobble);
     actx.lineTo(cx + 42, cy - 24 + wobble);
-  } else if (pose === 'boxing') {
+  } else if (curPose === 'boxing') {
     actx.moveTo(cx - 24, cy - 6 + wobble);
     actx.lineTo(cx - 36, cy - 14 + wobble);
     actx.moveTo(cx + 24, cy - 6 + wobble);
     actx.lineTo(cx + 46, cy - 10 + wobble);
-  } else if (pose === 'dab') {
+  } else if (curPose === 'dab') {
     actx.moveTo(cx - 24, cy - 6 + wobble);
     actx.lineTo(cx - 46, cy - 28 + wobble);
     actx.moveTo(cx + 24, cy - 6 + wobble);
@@ -914,8 +919,8 @@ function drawPedestalAvatar(c, now, custom, pose = 'stand') {
   actx.fill();
 
   // Face Expression (Cool Shades from mockup as default)
-  const face = custom.face || 'cool';
-  if (face === 'cool' || custom.headwear === 'shades') {
+  const face = eq.face || 'cool';
+  if (face === 'cool' || eq.headwear === 'shades') {
     actx.fillStyle = '#111116';
     actx.beginPath();
     actx.roundRect(cx - 22, headY - 8, 20, 14, 4);
@@ -965,7 +970,7 @@ function drawPedestalAvatar(c, now, custom, pose = 'stand') {
   }
 
   // Headwear
-  const hw = custom.headwear;
+  const hw = eq.headwear;
   if (hw === 'crown') {
     actx.fillStyle = '#ffd23f';
     actx.strokeStyle = '#c89e00';

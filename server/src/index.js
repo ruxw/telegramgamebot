@@ -51,6 +51,8 @@ const clean = s => String(s || 'Beast').replace(/[^\w \-.]/g, '').trim().slice(0
 
 io.on('connection', socket => {
   let key = null, name = 'Beast', tokens = 150, last = Date.now();
+  let playerCustom = { color: '', hat: 'none' };
+
   const allow = () => {
     const n = Date.now();
     tokens = Math.min(150, tokens + (n - last) * 0.15);
@@ -70,7 +72,7 @@ io.on('connection', socket => {
 
   const enter = (r, ack) => {
     if (playerRoom.get(key) !== r.code) leave(true);
-    const p = r.addPlayer(key, name, socket.id);
+    const p = r.addPlayer(key, name, socket.id, playerCustom);
     if (!p) return ack?.({ ok: false, error: 'Room is full or match is already in progress' });
     playerRoom.set(key, r.code);
     socket.join(r.code);
@@ -101,6 +103,9 @@ io.on('connection', socket => {
   socket.on('hello', (d, ack) => {
     if (!d || !allow()) return ack?.({ ok: false });
     let sp = '';
+    if (typeof d.skin === 'string' && /^#[0-9a-fA-F]{6}$/.test(d.skin)) playerCustom.color = d.skin;
+    if (typeof d.hat === 'string' && ['none', 'crown', 'shades', 'cowboy', 'viking', 'bow'].includes(d.hat)) playerCustom.hat = d.hat;
+
     if (BOT_TOKEN) {
       const u = validateInitData(d.initData, BOT_TOKEN);
       if (!u) return ack?.({ ok: false, error: 'Please open this game directly inside Telegram.' });
@@ -120,7 +125,7 @@ io.on('connection', socket => {
       r = resolveStart(sp);
     }
     if (r) {
-      const p = r.addPlayer(key, name, socket.id);
+      const p = r.addPlayer(key, name, socket.id, playerCustom);
       if (!p) return ack?.({ ok: false, error: 'Room is full or match is already in progress' });
       playerRoom.set(key, r.code);
       socket.join(r.code);
@@ -128,6 +133,19 @@ io.on('connection', socket => {
       return ack?.({ ok: true, pid: p.pid, room: r.publicState() });
     }
     ack?.({ ok: true });
+  });
+
+  socket.on('update_custom', d => {
+    if (!key || !allow()) return;
+    if (typeof d?.skin === 'string' && /^#[0-9a-fA-F]{6}$/.test(d.skin)) playerCustom.color = d.skin;
+    if (typeof d?.hat === 'string') playerCustom.hat = d.hat;
+    const r = room();
+    const p = r?.players.get(key);
+    if (p) {
+      if (playerCustom.color) p.color = playerCustom.color;
+      if (playerCustom.hat) p.hat = playerCustom.hat;
+      r.broadcastRoom();
+    }
   });
 
   socket.on('create', (d, ack) => {
@@ -184,8 +202,8 @@ io.on('connection', socket => {
 setInterval(() => {
   const now = Date.now();
   for (const [code, r] of rooms) {
-    const anyone = [...r.players.values()].some(p => p.connected);
-    if ((!anyone && now - r.touched > 30000) || now - r.touched > 3600000) {
+    const anyone = [...r.players.values()].some(p => p.connected || (now - p.dcAt < 45000));
+    if ((!anyone && now - r.touched > 45000) || now - r.touched > 3600000) {
       r.destroy();
       rooms.delete(code);
       for (const [k, c] of playerRoom) {

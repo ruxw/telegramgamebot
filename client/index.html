@@ -3,87 +3,290 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-<title>Gang Beasts - Telegram Game</title>
+<title>Gang Beasts — Telegram Ragdoll Brawl</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <link rel="stylesheet" href="/src/style.css">
 </head>
 <body>
 <canvas id="game"></canvas>
 
-<!-- Top in-game HUD -->
+<!-- Top Glass Header (Available on main screens) -->
+<header id="top-nav" class="glass-header">
+  <div class="brand">
+    <span class="logo-emoji">🥊</span>
+    <div class="brand-text">
+      <span class="title">GANG<b>BEASTS</b></span>
+      <span class="sub-badge">TELEGRAM EDITION</span>
+    </div>
+  </div>
+  <div class="header-actions">
+    <div class="stat-pill" id="header-trophy" title="Your Trophies">
+      <span class="trophy-icon">🏆</span>
+      <span id="trophy-count">1,240</span>
+    </div>
+    <button id="sound-btn" class="glass-icon-btn" title="Toggle Sound">🔊</button>
+  </div>
+</header>
+
+<!-- In-game HUD (Only visible during match) -->
 <div id="hud" class="hidden">
   <div id="hud-players"></div>
-  <button id="sound-btn" class="icon-btn" title="Toggle Sound">🔊</button>
+  <button id="ingame-sound-btn" class="glass-icon-btn" title="Toggle Sound">🔊</button>
 </div>
 
 <div id="banner" class="hidden"></div>
 
-<!-- Main Menu Screen -->
-<section id="menu" class="screen">
-  <div class="logo-box">
-    <h1>GANG<span>BEASTS</span></h1>
-    <span class="badge">TELEGRAM BRAWLER</span>
-  </div>
-  <p class="tag">Wobbly Ragdoll Physics · Punch, Grab &amp; Yeet Your Friends</p>
-  
-  <input id="name" maxlength="16" placeholder="Beast Name" autocomplete="off">
-  
-  <div class="row">
-    <select id="size">
-      <option value="2">1 vs 1 (2 Beasts)</option>
-      <option value="3">3 Beasts</option>
-      <option value="4" selected>4 Beasts (Party)</option>
-      <option value="6">6 Beasts (Mayhem)</option>
-    </select>
-    <button id="create" class="big">Create Lobby</button>
-  </div>
-  
-  <button id="quick" class="big alt">Quick Match</button>
-  
-  <div class="row">
-    <input id="code" maxlength="5" placeholder="ROOM CODE">
-    <button id="join">Join</button>
-  </div>
-  
-  <p id="err" class="err"></p>
-</section>
+<!-- MAIN HUB: Contains Home, Profile, Ranks -->
+<main id="hub" class="screen">
+  <!-- TAB 1: BRAWL / HOME -->
+  <section id="tab-play" class="tab-pane active">
+    <!-- Hero / Quick Match Card -->
+    <div class="hero-card glass-panel">
+      <div class="hero-content">
+        <div class="user-greeting">
+          <div class="avatar-ring" id="hero-avatar-ring">
+            <div class="avatar-dot" id="hero-avatar-dot"></div>
+          </div>
+          <div>
+            <span class="greet-sub">Welcome back,</span>
+            <h3 id="hero-username" class="greet-name">Player</h3>
+          </div>
+        </div>
+        <p class="hero-tagline">Wobbly gelatinous physics brawler. Yeet your friends off platforms!</p>
+      </div>
 
-<!-- Room / Lobby Screen -->
+      <button id="quick" class="btn-glass primary-glow big-btn pulse-glow">
+        <span class="btn-icon">⚡</span> QUICK BRAWL
+      </button>
+    </div>
+
+    <!-- Actions Grid -->
+    <div class="actions-grid">
+      <!-- Create Room Glass Card -->
+      <div class="action-card glass-panel">
+        <div class="card-header">
+          <span class="card-icon">👑</span>
+          <h4>Create Match</h4>
+        </div>
+        <div class="card-body">
+          <div class="field-group">
+            <label>Players:</label>
+            <select id="size" class="glass-input">
+              <option value="2">1 vs 1 (Duel)</option>
+              <option value="3">3 Beasts (Chaos)</option>
+              <option value="4" selected>4 Beasts (Party)</option>
+              <option value="6">6 Beasts (Mayhem)</option>
+            </select>
+          </div>
+          <div class="field-group">
+            <label>Stage:</label>
+            <select id="create-map" class="glass-input">
+              <option value="rooftop">🏙️ Rooftop Rumble</option>
+              <option value="ring">🥊 Wrestling Ring</option>
+              <option value="factory">🏭 Meat Factory</option>
+              <option value="trucks">🚚 Highway Trucks</option>
+            </select>
+          </div>
+          <button id="create" class="btn-glass accent-btn full-w">Create Lobby</button>
+        </div>
+      </div>
+
+      <!-- Join by Code Glass Card -->
+      <div class="action-card glass-panel">
+        <div class="card-header">
+          <span class="card-icon">🔑</span>
+          <h4>Join by Code</h4>
+        </div>
+        <div class="card-body">
+          <p class="card-hint">Have a room code from a friend?</p>
+          <div class="code-row">
+            <input id="code" maxlength="5" placeholder="CODE" class="glass-input code-input">
+            <button id="join" class="btn-glass secondary-btn">Join</button>
+          </div>
+          <p id="err" class="err-text"></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Telegram Group Match Info Banner -->
+    <div class="group-info-card glass-panel">
+      <div class="group-info-content">
+        <span class="group-icon">👥</span>
+        <div>
+          <b>Play with Telegram Group Members:</b>
+          <p>Add <code>@GangBeastsBot</code> to any group & send <code>/play</code>. Everyone taps to brawl!</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 2: BEAST LAB / PROFILE -->
+  <section id="tab-profile" class="tab-pane">
+    <div class="profile-layout">
+      <!-- Avatar Showcase Panel -->
+      <div class="avatar-showcase glass-panel">
+        <div class="avatar-stage">
+          <canvas id="avatar-preview" width="200" height="200"></canvas>
+          <span class="wobble-hint">✨ Squishy &amp; Interactive</span>
+        </div>
+        <div class="profile-name-box">
+          <input id="name" maxlength="16" placeholder="Your Beast Name" class="glass-input name-input" autocomplete="off">
+          <span class="rank-tag" id="profile-rank-tag">🏆 Rooftop Wrecker</span>
+        </div>
+      </div>
+
+      <!-- Customization Options Panel -->
+      <div class="custom-panel glass-panel">
+        <h4>🎨 Jelly Skin Color</h4>
+        <div class="color-picker" id="color-picker">
+          <!-- Colors dynamically generated or styled -->
+          <button class="color-swatch active" data-color="#ff4d6d" style="background:#ff4d6d" title="Crimson"></button>
+          <button class="color-swatch" data-color="#4dd2ff" style="background:#4dd2ff" title="Electric Cyan"></button>
+          <button class="color-swatch" data-color="#ffd23f" style="background:#ffd23f" title="Banana Yellow"></button>
+          <button class="color-swatch" data-color="#7cff6b" style="background:#7cff6b" title="Slime Lime"></button>
+          <button class="color-swatch" data-color="#b5179e" style="background:#b5179e" title="Neon Violet"></button>
+          <button class="color-swatch" data-color="#ff7b00" style="background:#ff7b00" title="Lava Orange"></button>
+          <button class="color-swatch" data-color="#ff70a6" style="background:#ff70a6" title="Bubblegum Pink"></button>
+          <button class="color-swatch" data-color="#00f5d4" style="background:#00f5d4" title="Arctic Mint"></button>
+        </div>
+
+        <h4 style="margin-top:16px">🎩 Headwear &amp; Shades</h4>
+        <div class="hat-picker" id="hat-picker">
+          <button class="hat-chip active" data-hat="none">🚫 None</button>
+          <button class="hat-chip" data-hat="crown">👑 Crown</button>
+          <button class="hat-chip" data-hat="shades">🕶️ Shades</button>
+          <button class="hat-chip" data-hat="cowboy">🤠 Cowboy</button>
+          <button class="hat-chip" data-hat="viking">🪖 Viking</button>
+          <button class="hat-chip" data-hat="bow">🎀 Bow</button>
+        </div>
+      </div>
+
+      <!-- Player Combat Stats -->
+      <div class="stats-panel glass-panel">
+        <h4>📊 Career Statistics</h4>
+        <div class="stats-grid">
+          <div class="stat-box">
+            <span class="stat-num" id="stat-brawls">24</span>
+            <span class="stat-label">Brawls</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-num" id="stat-wins">16</span>
+            <span class="stat-label">Victories</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-num" id="stat-kos">42</span>
+            <span class="stat-label">Knockouts</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-num" id="stat-winrate">67%</span>
+            <span class="stat-label">Win Rate</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 3: LEADERBOARD / RANKS -->
+  <section id="tab-ranks" class="tab-pane">
+    <div class="ranks-card glass-panel">
+      <div class="ranks-header">
+        <span class="ranks-icon">👑</span>
+        <h3>Brawler Hall of Fame</h3>
+      </div>
+      <p class="card-hint">Top knockout champions in group arena brawls.</p>
+      <div class="leaderboard-list" id="leaderboard-list">
+        <div class="rank-row gold">
+          <span class="rank-pos">#1</span>
+          <span class="rank-dot" style="background:#ffd23f"></span>
+          <span class="rank-name">RooftopKing</span>
+          <span class="rank-score">184 KOs</span>
+        </div>
+        <div class="rank-row silver">
+          <span class="rank-pos">#2</span>
+          <span class="rank-dot" style="background:#4dd2ff"></span>
+          <span class="rank-name">YeetMaster99</span>
+          <span class="rank-score">152 KOs</span>
+        </div>
+        <div class="rank-row bronze">
+          <span class="rank-pos">#3</span>
+          <span class="rank-dot" style="background:#ff4d6d"></span>
+          <span class="rank-name">JellyDestroyer</span>
+          <span class="rank-score">129 KOs</span>
+        </div>
+        <div class="rank-row">
+          <span class="rank-pos">#4</span>
+          <span class="rank-dot" style="background:#7cff6b"></span>
+          <span class="rank-name">SlimePuncher</span>
+          <span class="rank-score">98 KOs</span>
+        </div>
+        <div class="rank-row you-row">
+          <span class="rank-pos">#5</span>
+          <span class="rank-dot" id="your-rank-dot" style="background:#ff4d6d"></span>
+          <span class="rank-name" id="your-rank-name">You</span>
+          <span class="rank-score" id="your-rank-score">42 KOs</span>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- FLOATING GLASS TAB BAR -->
+<nav id="bottom-tabs" class="glass-tab-bar">
+  <button class="tab-btn active" data-tab="tab-play">
+    <span class="tab-icon">🥊</span>
+    <span class="tab-text">Brawl</span>
+  </button>
+  <button class="tab-btn" data-tab="tab-profile">
+    <span class="tab-icon">👤</span>
+    <span class="tab-text">Beast Lab</span>
+  </button>
+  <button class="tab-btn" data-tab="tab-ranks">
+    <span class="tab-icon">🏆</span>
+    <span class="tab-text">Ranks</span>
+  </button>
+</nav>
+
+<!-- LOBBY / ROOM SCREEN -->
 <section id="room" class="screen hidden">
-  <div class="room-header">
-    <h2>LOBBY: <b id="rcode"></b></h2>
-    <button id="invite" class="small alt">📢 Invite Group Members</button>
-  </div>
+  <div class="room-card glass-panel">
+    <div class="room-top">
+      <div>
+        <span class="room-tag">ROOM LOBBY</span>
+        <h2 class="room-code-display"><b id="rcode">-----</b></h2>
+      </div>
+      <button id="invite" class="btn-glass accent-btn small-btn">📢 Share Link</button>
+    </div>
 
-  <div class="map-picker">
-    <label>ARENA:</label>
-    <select id="map-select">
-      <option value="rooftop">🏙️ Rooftop Rumble</option>
-      <option value="ring">🥊 Wrestling Ring</option>
-      <option value="factory">🏭 Meat Factory</option>
-      <option value="trucks">🚚 Highway Trucks</option>
-    </select>
-  </div>
+    <div class="room-arena-picker">
+      <label>🗺️ Arena:</label>
+      <select id="map-select" class="glass-input">
+        <option value="rooftop">🏙️ Rooftop Rumble</option>
+        <option value="ring">🥊 Wrestling Ring</option>
+        <option value="factory">🏭 Meat Factory</option>
+        <option value="trucks">🚚 Highway Trucks</option>
+      </select>
+    </div>
 
-  <div id="plist"></div>
+    <div id="plist" class="player-slot-list"></div>
 
-  <div class="row btn-row">
-    <button id="ready" class="big">READY UP</button>
-    <button id="leave" class="small">Leave</button>
+    <div class="room-actions">
+      <button id="ready" class="btn-glass primary-glow ready-btn">READY UP</button>
+      <button id="leave" class="btn-glass danger-btn leave-btn">Leave</button>
+    </div>
+
+    <p class="controls-guide">
+      🎮 <b>Controls:</b> WASD/Arrows to Move · Space to Jump · J / Left Click: Punch · K / Right Click: Grab (Hold) · Grab + Punch: Throw!
+    </p>
   </div>
-  
-  <p class="hint">
-    🎮 <b>Controls:</b> WASD/Arrows to Move · Space to Jump · J or Left Click to Punch · K/Shift or Right Click to Grab (Hold) · Grab + Punch = Throw!
-  </p>
 </section>
 
-<!-- Onscreen Touch Controls for Telegram Mobile -->
+<!-- TOUCH CONTROLS FOR MOBILE TELEGRAM -->
 <div id="touch" class="hidden">
-  <div id="stick"><div id="knob"></div></div>
-  <div id="btns">
-    <button data-k="j" class="touch-btn">JUMP</button>
-    <button data-k="p" class="touch-btn punch">PUNCH</button>
-    <button data-k="g" class="touch-btn grab">GRAB</button>
+  <div id="stick" class="glass-stick"><div id="knob" class="glass-knob"></div></div>
+  <div id="btns" class="touch-btns">
+    <button data-k="j" class="touch-glass-btn btn-jump">JUMP</button>
+    <button data-k="p" class="touch-glass-btn btn-punch">PUNCH</button>
+    <button data-k="g" class="touch-glass-btn btn-grab">GRAB</button>
   </div>
 </div>
 

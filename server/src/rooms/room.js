@@ -2,7 +2,7 @@ import Matter from 'matter-js';
 import { MAPS } from '../../../shared/maps.js';
 
 const { Engine, Bodies, Body, Composite, Constraint, Query } = Matter;
-const COLORS = ['#ff4d6d', '#4dd2ff', '#ffd23f', '#7cff6b', '#ff70a6', '#00f5d4'];
+const COLORS = ['#ff4d6d', '#4dd2ff', '#ffd23f', '#7cff6b', '#b5179e', '#ff7b00', '#ff70a6', '#00f5d4'];
 const MATCH_MS = 120000, COUNTDOWN_MS = 3000, RESULT_MS = 6000;
 const wrap = a => { a = (a + Math.PI) % (2 * Math.PI); if (a < 0) a += 2 * Math.PI; return a - Math.PI; };
 const r1 = n => Math.round(n * 10) / 10;
@@ -38,13 +38,15 @@ export class Room {
     return true;
   }
 
-  addPlayer(key, name, sid) {
+  addPlayer(key, name, sid, customData = {}) {
     let p = this.players.get(key);
     if (p) {
       p.sid = sid;
       p.name = name || p.name;
       p.connected = true;
       p.dcAt = 0;
+      if (customData.color) p.color = customData.color;
+      if (customData.hat) p.hat = customData.hat;
       this.touched = Date.now();
       return p;
     }
@@ -54,7 +56,8 @@ export class Room {
       pid: this.nextPid++,
       name,
       sid,
-      color: COLORS[(this.players.size) % COLORS.length],
+      color: customData.color || COLORS[(this.players.size) % COLORS.length],
+      hat: customData.hat || 'none',
       ready: false,
       connected: true,
       dcAt: 0,
@@ -74,6 +77,7 @@ export class Room {
       if (this.phase === 'playing' && p.alive) this.eliminate(p);
       this.players.delete(key);
     } else {
+      // Mark socket disconnected with timestamp (grace period for app minimize / screen lock)
       p.connected = false;
       p.dcAt = Date.now();
     }
@@ -101,19 +105,27 @@ export class Room {
   }
 
   publicState() {
+    const now = Date.now();
     return {
       code: this.code,
       phase: this.phase,
       max: this.max,
       map: this.mapId,
       mode: this.mode,
-      players: [...this.players.values()].map(p => ({
-        pid: p.pid,
-        name: p.name,
-        color: p.color,
-        ready: p.ready,
-        connected: p.connected
-      }))
+      players: [...this.players.values()].map(p => {
+        // Generous 45-second grace period when minimized before showing offline
+        const isOffline = !p.connected && (now - p.dcAt > 45000);
+        const isMinimized = !p.connected && !isOffline;
+        return {
+          pid: p.pid,
+          name: p.name,
+          color: p.color,
+          hat: p.hat || 'none',
+          ready: p.ready,
+          connected: !isOffline,
+          minimized: isMinimized
+        };
+      })
     };
   }
 
@@ -122,7 +134,9 @@ export class Room {
   }
 
   maybeStart() {
-    const ps = [...this.players.values()].filter(p => p.connected);
+    const now = Date.now();
+    // Allow players who are currently connected or temporarily minimized within grace period
+    const ps = [...this.players.values()].filter(p => p.connected || (now - p.dcAt <= 45000));
     if (this.phase === 'lobby' && ps.length >= 2 && ps.every(p => p.ready)) {
       this.startMatch();
     }
@@ -137,7 +151,8 @@ export class Room {
     Composite.add(engine.world, this.statics);
 
     let i = 0;
-    const activePlayers = [...this.players.values()].filter(p => p.connected);
+    const now = Date.now();
+    const activePlayers = [...this.players.values()].filter(p => p.connected || (now - p.dcAt <= 45000));
     for (const p of activePlayers) {
       const sp = this.map.spawns[i % this.map.spawns.length];
       const g = -(++i);
@@ -205,10 +220,12 @@ export class Room {
     this.phase = phase;
     this.cleanupPhysics();
     if (phase === 'lobby') {
+      const now = Date.now();
       for (const [k, p] of this.players) {
         p.ready = false;
         p.grab = null;
-        if (!p.connected) this.players.delete(k);
+        // Only clean up if disconnected longer than 45 seconds
+        if (!p.connected && (now - p.dcAt > 45000)) this.players.delete(k);
       }
     }
   }
@@ -227,7 +244,6 @@ export class Room {
       const dx = o.torso.position.x - p.torso.position.x;
       const dy = o.torso.position.y - p.torso.position.y;
       const d = Math.hypot(dx, dy);
-      // Opponent must be in front or overlapping the punch/grab reach
       if (d < bd && (dx * p.facing > -8 || d < 35)) {
         best = o;
         bd = d;
@@ -309,7 +325,6 @@ export class Room {
     p.onGround = this.grounded(p);
 
     if (!stunned) {
-      // Gang Beasts jelly movement physics
       const max = (p.grab ? 3.2 : 5.0) * (p.onGround ? 1 : 0.82);
       const k = p.onGround ? 0.24 : 0.09;
       Body.setVelocity(tb, {
@@ -318,22 +333,18 @@ export class Room {
       });
       if (inp.x) p.facing = Math.sign(inp.x);
 
-      // Upright torque stabilization
       Body.setAngularVelocity(tb, tb.angularVelocity * 0.8 - wrap(tb.angle) * 0.06);
 
-      // Jump
       if (inp.j && p.onGround && now - p.lastJump > 260) {
         Body.setVelocity(tb, { x: tb.velocity.x, y: -8.8 });
         p.lastJump = now;
       }
 
-      // Punch / Throw
       if (inp.p && !p.prevP) {
         if (p.grab) this.throwGrabbed(p, now);
         else this.punch(p, now);
       }
 
-      // Grab hold
       if (inp.g) {
         if (!p.grab && p.stamina > 6) this.tryGrab(p);
       } else {
@@ -345,12 +356,10 @@ export class Room {
 
     p.prevP = inp.p;
 
-    // Grab stamina drain and opponent lifting
     if (p.grab) {
       p.stamina -= 0.22;
       if (p.grab.target && p.grab.target.torso) {
         p.grab.target.stunUntil = Math.max(p.grab.target.stunUntil, now + 200);
-        // Lift opponent slightly upward as in Gang Beasts
         if (inp.j || inp.x) {
           Body.applyForce(p.grab.target.torso, p.grab.target.torso.position, { x: p.facing * 0.001, y: -0.002 });
         }
@@ -394,7 +403,8 @@ export class Room {
       for (const p of [...this.players.values()].filter(q => q.alive)) {
         if (!p.connected) {
           p.input = { x: 0, j: 0, p: 0, g: 0 };
-          if (now - p.dcAt > 15000) {
+          // Generous 35s grace period before eliminating a minimized player mid-fight
+          if (now - p.dcAt > 35000) {
             this.eliminate(p);
             continue;
           }
@@ -457,7 +467,8 @@ export class Room {
         d: Math.round(p.damage),
         s: Math.round(p.stamina),
         f: (now < p.stunUntil ? 1 : 0) | (p.grab ? 2 : 0) | (now < p.punchUntil ? 4 : 0),
-        fc: p.facing
+        fc: p.facing,
+        h: p.hat || 'none'
       } : { i: p.pid, al: 0 })
     };
   }
